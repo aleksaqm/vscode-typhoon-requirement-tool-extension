@@ -9,15 +9,46 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
         "command": "typhoon-requirement-tool.helloWorld",
         "title": "Hello World"
-      }
-    ]
+      },
+      {
+        "command": "typhoon-requirement-tool.addRequirement",
+        "title": "Add Requirement"
+      },
+      {
+        "command": "typhoon-requirement-tool.addTest",
+        "title": "Add Test"
+      },
+      {
+        "command": "typhoon-requirement-tool.addTestCase",
+        "title": "Add Test Case"
+    }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "typhoon-requirements-tree",
+          "title": "Typhoon Requirement Tool",
+          "icon": "media/api-wizard.svg"
+        }
+      ]
+    },
+    "views": {
+      "typhoon-requirements-tree": [
+        {
+          "id": "typhoon-requirement-tool.tree",
+          "name": "Typhoon Requirement Tool Tree View",
+          "icon": "media/api-wizard.svg"	
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
