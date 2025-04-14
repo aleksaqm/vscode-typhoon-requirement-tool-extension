@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { Requirement } from './models/requirement';
 import { RequirementTreeProvider } from './views/requirementTreeViewProvider';
+import { TreeNode } from './models/treeNode';
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -15,17 +16,25 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.window.showInformationMessage('Hello Qm from Typhoon Requirement Tool!');
 	}));
 
-	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.addRequirement', () => {
-		requirementDataProvider.addRequirement(null);
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.addRequirement', (node: TreeNode) => {
+		requirementDataProvider.addRequirement(node);
 	}));
 
-	// context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.addTest', () => {
-	// 	requirementDataProvider.addTest(null);
-	// }));
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.addTest', (node: TreeNode) => {
+		if (!node) {
+			vscode.window.showErrorMessage('No requirement selected. You cant add test without requirement.');
+			return;
+		}
+		requirementDataProvider.addTest(node);
+	}));
 	
-	// context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.addTestCase', () => {
-	// 	requirementDataProvider.addTestCase(null);
-	// }));
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.addTestCase', (node: TreeNode) => {
+		if (!node) {
+			vscode.window.showErrorMessage('No test selected. You cant add test case without test.');
+			return;
+		}
+		requirementDataProvider.addTestCase(node);
+	}));
 
 }
 

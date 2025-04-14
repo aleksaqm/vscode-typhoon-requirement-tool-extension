@@ -30,7 +30,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         this._onDidChangeTreeData.fire();
     }
 
-    async addRequirement(parent: TreeNode | null): Promise<void> {
+    async addRequirement(parent: TreeNode | null = null): Promise<void> {
         const name = await vscode.window.showInputBox({ prompt: 'Enter requirement name' });
         const description = await vscode.window.showInputBox({ prompt: 'Enter requirement description' });
         if (name && description) {
@@ -39,7 +39,6 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
                 parent.children.push(newRequirement);
                 newRequirement.parent = parent;
             }
-            parent?.children.push(newRequirement);
             this.requirements.push(newRequirement);
             this.refresh();
         }

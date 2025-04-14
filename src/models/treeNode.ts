@@ -7,6 +7,7 @@ export abstract class TreeNode extends vscode.TreeItem {
     constructor(
         public readonly label: string,
         public readonly collapsibleState: vscode.TreeItemCollapsibleState,
+        public readonly contextValue: string
     ) {
         super(label, collapsibleState);
     }

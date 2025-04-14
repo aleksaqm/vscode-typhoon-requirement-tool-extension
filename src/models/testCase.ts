@@ -10,7 +10,7 @@ export class TestCase extends TreeNode{
         public readonly prerequisites: string[],
         public readonly expectedResults: string[],
     ){
-        super(name, vscode.TreeItemCollapsibleState.Collapsed);
+        super(name, vscode.TreeItemCollapsibleState.Collapsed, 'testCase');
         this.tooltip = `${this.name} - ${this.description}`;
         this.description = this.description || 'No description available';
     }
