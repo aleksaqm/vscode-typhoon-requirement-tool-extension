@@ -4,16 +4,16 @@ import * as vscode from 'vscode';
 export class TestCase extends TreeNode{
     constructor(
         public readonly id: string,
-        public readonly name: string,
-        public readonly scenario: string,
-        public readonly steps: string[],
-        public readonly prerequisites: string[],
-        public readonly testData: string[],
-        public readonly expectedResults: string[],
+        public name: string,
+        public scenario: string,
+        public steps: string[],
+        public prerequisites: string[],
+        public testData: string[],
+        public expectedResults: string[],
     ){
         super(name, vscode.TreeItemCollapsibleState.Collapsed, 'testCase');
-        this.tooltip = `${this.name} - ${this.description}`;
-        this.description = this.description || 'No description available';
+        this.description = this.scenario;
+        this.tooltip = this.name;
     }
 
     canHaveChildren(): boolean {

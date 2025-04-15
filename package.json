@@ -36,6 +36,38 @@
           "light": "media/light/icon1.svg",
           "dark": "media/dark/icon1.svg"	
         }
+      },
+      {
+        "command": "typhoon-requirement-tool.deleteNode",
+        "title": "Delete Node",
+        "icon": {
+          "light": "media/light/icon2.svg",
+          "dark": "media/dark/icon2.svg"	
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.editRequirement",
+        "title": "Edit Requirement",
+        "icon": {
+          "light": "media/light/icon1.svg",
+          "dark": "media/dark/icon1.svg"	
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.editTest",
+        "title": "Edit Test",
+        "icon": {
+          "light": "media/light/icon1.svg",
+          "dark": "media/dark/icon1.svg"	
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.editTestCase",
+        "title": "Edit Test Case",
+        "icon": {
+          "light": "media/light/icon1.svg",
+          "dark": "media/dark/icon1.svg"	
+        }
       }
     ],
     "viewsContainers": {
@@ -51,7 +83,7 @@
       "typhoon-requirements-tree": [
         {
           "id": "typhoon-requirement-tool.tree",
-          "name": "Typhoon Requirement Tool Tree View",
+          "name": "Typhoon Requirement Tool Tree",
           "icon": "media/api-wizard.svg"
         }
       ]
@@ -72,6 +104,25 @@
           "command": "typhoon-requirement-tool.addTestCase",
           "group": "inline",
           "when": "viewItem == test"
+        },
+        {
+          "command": "typhoon-requirement-tool.deleteNode",
+          "group": "inline"
+        },
+        {
+          "command": "typhoon-requirement-tool.editRequirement",
+          "when": "viewItem == requirement",
+          "group": "inline"
+        },
+        {
+          "command": "typhoon-requirement-tool.editTest",
+          "when": "viewItem == test",
+          "group": "inline"
+        },
+        {
+          "command": "typhoon-requirement-tool.editTestCase",
+          "when": "viewItem == testCase",
+          "group": "inline"
         }
       ],
       "view/title": [
@@ -80,6 +131,7 @@
           "when": "view == typhoon-requirement-tool.tree",
           "group": "navigation"
         }
+        
       ],
       "commandPalette": [
         {

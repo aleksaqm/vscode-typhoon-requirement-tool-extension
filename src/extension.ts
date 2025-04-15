@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import { Requirement } from './models/requirement';
 import { RequirementTreeProvider } from './views/requirementTreeViewProvider';
 import { TreeNode } from './models/treeNode';
+import { TestNode } from './models/test';
+import { TestCase } from './models/testCase';
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -14,7 +16,7 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.window.showInformationMessage('Hello Qm from Typhoon Requirement Tool!');
 	}));
 
-	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.addRequirement', (node: TreeNode) => {
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.addRequirement', (node: Requirement) => {
 		requirementDataProvider.addRequirement(node);
 	}));
 
@@ -32,6 +34,22 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 		requirementDataProvider.addTestCase(node);
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.deleteNode', (node: TreeNode) => {
+		requirementDataProvider.deleteNode(node);
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.editRequirement', (node: Requirement) => {
+		requirementDataProvider.editRequirement(node);
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.editTest', (node: TestNode) => {
+		requirementDataProvider.editTest(node);
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.editTestCase', (node: TestCase) => {
+		requirementDataProvider.editTestCase(node);
 	}));
 
 }

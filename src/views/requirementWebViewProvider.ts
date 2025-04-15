@@ -2,24 +2,29 @@ import * as vscode from 'vscode';
 import { Requirement } from '../models/requirement';
 import { getUniqueId } from '../utils/idGenerator';
 
-export class AddRequirementWebviewProvider {
-    static show(parent: any, onSubmit: (requirement: Requirement) => void): void {
+export class RequirementWebviewProvider {
+    static show(node: Requirement | undefined, onSubmit: (requirement: Requirement) => void): void {
         const panel = vscode.window.createWebviewPanel(
             'addRequirement',
             'Add Requirement',
             vscode.ViewColumn.One,
             { enableScripts: true }
         );
-
-        panel.webview.html = AddRequirementWebviewProvider.getHtml();
+        panel.webview.html = RequirementWebviewProvider.getHtml(node);
 
         panel.webview.onDidReceiveMessage((message) => {
             if (message.command === 'submit') {
                 const { name, description } = message.data;
                 if (name && description) {
-                    const newRequirement = new Requirement(getUniqueId(), name, description);
-                    onSubmit(newRequirement);
-                    panel.dispose();
+                    if (node){
+                        const id = node.id!;
+                        onSubmit(new Requirement(id, name, description));
+                        panel.dispose();
+                    }else{
+                        const newRequirement = new Requirement(getUniqueId(), name, description);
+                        onSubmit(newRequirement);
+                        panel.dispose();
+                    }
                 } else {
                     vscode.window.showErrorMessage('Please fill in all fields.');
                 }
@@ -27,14 +32,16 @@ export class AddRequirementWebviewProvider {
         });
     }
 
-    private static getHtml(): string {
+    private static getHtml(node: Requirement | undefined): string {
+        const name = node ? node.label : '';
+        const description = node && node.description ? node.description : '';
         return `
             <!DOCTYPE html>
             <html lang="en">
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Add Requirement</title>
+                <title>${node ? 'Edit Requirement' : 'Add Requirement'}</title>
                 <style>
                     body {
                         font-family: Arial, sans-serif;
@@ -67,15 +74,15 @@ export class AddRequirementWebviewProvider {
                 </style>
             </head>
             <body>
-                <h2>Add Requirement</h2>
+                <h2>${node ? 'Edit Requirement' : 'Add Requirement'}</h2>
                 <form id="requirementForm">
                     <label for="name">Requirement Name:</label>
-                    <input type="text" id="name" name="name" required />
+                    <input type="text" id="name" name="name" value="${name}" required />
     
                     <label for="description">Requirement Description:</label>
-                    <textarea id="description" name="description" rows="4" required></textarea>
+                    <textarea id="description" name="description" rows="4" required>${description}</textarea>
     
-                    <button type="button" id="submitButton">Submit</button>
+                    <button type="button" id="submitButton">${node ? 'Save Changes' : 'Submit'}</button>
                 </form>
     
                 <script>

@@ -2,8 +2,8 @@ import * as vscode from 'vscode';
 import { TestCase } from '../models/testCase';
 import {getUniqueId} from '../utils/idGenerator';
 
-export class AddTestCaseWebviewProvider {
-    static show(parent: any, onSubmit: (testCase: any) => void): void {
+export class TestCaseWebviewProvider {
+    static show(node: TestCase | undefined, onSubmit: (testCase: any) => void): void {
         const panel = vscode.window.createWebviewPanel(
             'addTestCase',
             'Add Test Case',
@@ -11,12 +11,17 @@ export class AddTestCaseWebviewProvider {
             { enableScripts: true }
         );
 
-        panel.webview.html = AddTestCaseWebviewProvider.getHtml();
+        panel.webview.html = TestCaseWebviewProvider.getHtml(node);
 
         panel.webview.onDidReceiveMessage((message) => {
             if (message.command === 'submit') {
                 const { name, scenario, steps, prerequisites, testData, expectedResults } = message.data;
                 if (name && scenario && steps && prerequisites && expectedResults) {
+                    if (node) {
+                        const id = node.id!;
+                        onSubmit(new TestCase(id, name, scenario, steps, prerequisites, testData, expectedResults));
+                        panel.dispose();
+                    }
                     const newTestCase = new TestCase(getUniqueId(), name, scenario, steps, prerequisites, testData, expectedResults);
                     onSubmit(newTestCase);
                     panel.dispose();
@@ -27,14 +32,21 @@ export class AddTestCaseWebviewProvider {
         });
     }
 
-    private static getHtml(): string {
+    private static getHtml(node: TestCase | undefined): string {
+        const name = node ? node.name : '';
+        const scenario = node ? node.scenario : '';
+        const steps = node ? node.steps : [];
+        const prerequisites = node ? node.prerequisites : [];
+        const testData = node ? node.testData : [];
+        const expectedResults = node ? node.expectedResults : [];
+    
         return `
             <!DOCTYPE html>
             <html lang="en">
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Add Test Case</title>
+                <title>${node ? 'Edit Test Case' : 'Add Test Case'}</title>
                 <style>
                     body {
                         font-family: Arial;
@@ -53,7 +65,7 @@ export class AddTestCaseWebviewProvider {
                         border-radius: 4px;
                     }
                     button {
-                        background-color:rgb(151, 70, 29);
+                        background-color: rgb(151, 70, 29);
                         color: white;
                         border: none;
                         padding: 10px 15px;
@@ -61,7 +73,7 @@ export class AddTestCaseWebviewProvider {
                         cursor: pointer;
                     }
                     button:hover {
-                        background-color:rgb(153, 77, 0);
+                        background-color: rgb(153, 77, 0);
                     }
                     ul {
                         list-style-type: none;
@@ -86,33 +98,34 @@ export class AddTestCaseWebviewProvider {
                         background-color: darkred;
                     }
                     #submitButton {
-                        background-color: rgb(153, 74, 0);}
+                        background-color: rgb(153, 74, 0);
+                    }
                 </style>
             </head>
             <body>
-                <h2>Add Test Case</h2>
+                <h2>${node ? 'Edit Test Case' : 'Add Test Case'}</h2>
                 <form id="testCaseForm">
                     <label for="name">Test Case Name:</label>
-                    <input type="text" id="name" name="name" placeholder="Enter test case name" required />
+                    <input type="text" id="name" name="name" value="${name}" placeholder="Enter test case name" required />
     
                     <label for="scenario">Scenario:</label>
-                    <textarea id="scenario" name="scenario" placeholder="Enter test case scenario" rows="3" required></textarea>
+                    <textarea id="scenario" name="scenario" placeholder="Enter test case scenario" rows="3" required>${scenario}</textarea>
     
-                    ${this.getDynamicListHtml('steps', 'Steps')}
-                    ${this.getDynamicListHtml('prerequisites', 'Prerequisites')}
-                    ${this.getDynamicListHtml('testData', 'Test Data')}
-                    ${this.getDynamicListHtml('expectedResults', 'Expected Results')}
+                    ${this.getDynamicListHtml('steps', 'Steps', steps)}
+                    ${this.getDynamicListHtml('prerequisites', 'Prerequisites', prerequisites)}
+                    ${this.getDynamicListHtml('testData', 'Test Data', testData)}
+                    ${this.getDynamicListHtml('expectedResults', 'Expected Results', expectedResults)}
                     <br>
-                    <button type="button" id="submitButton">Submit</button>
+                    <button type="button" id="submitButton">${node ? 'Save Changes' : 'Submit'}</button>
                 </form>
     
                 <script>
                     const vscode = acquireVsCodeApi();
                     const lists = {
-                        steps: [],
-                        prerequisites: [],
-                        testData: [],
-                        expectedResults: []
+                        steps: ${JSON.stringify(steps)},
+                        prerequisites: ${JSON.stringify(prerequisites)},
+                        testData: ${JSON.stringify(testData)},
+                        expectedResults: ${JSON.stringify(expectedResults)}
                     };
     
                     function addItem(listName) {
@@ -145,6 +158,9 @@ export class AddTestCaseWebviewProvider {
                         });
                     }
     
+                    // Initialize lists with existing values
+                    Object.keys(lists).forEach(updateList);
+    
                     document.getElementById('submitButton').addEventListener('click', () => {
                         const name = document.getElementById('name').value;
                         const scenario = document.getElementById('scenario').value;
@@ -167,12 +183,23 @@ export class AddTestCaseWebviewProvider {
         `;
     }
 
-    private static getDynamicListHtml(listName: string, label: string): string {
+    private static getDynamicListHtml(listName: string, label: string, items: string[]): string {
+        const listItems = items
+            .map(
+                (item, index) => `
+                <li>
+                    ${item}
+                    <button type="button" class="remove-button" onclick="removeItem('${listName}', ${index})">Remove</button>
+                </li>
+            `
+            )
+            .join('');
+    
         return `
             <label for="${listName}">${label}:</label>
             <input type="text" id="${listName}Input" placeholder="Enter ${label.toLowerCase()}" />
             <button type="button" onclick="addItem('${listName}')">Add ${label}</button>
-            <ul id="${listName}List"></ul>
+            <ul id="${listName}List">${listItems}</ul>
         `;
     }
 

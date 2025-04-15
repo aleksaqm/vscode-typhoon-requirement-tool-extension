@@ -4,9 +4,9 @@ import { Requirement } from '../models/requirement';
 import { getUniqueId } from '../utils/idGenerator';
 import { TestNode } from '../models/test';
 import { TestCase } from '../models/testCase';
-import { AddRequirementWebviewProvider } from './addRequirementWebViewProvider';
-import { AddTestWebviewProvider } from './addTestWebViewProvider';
-import { AddTestCaseWebviewProvider } from './addTestCaseWebViewProvider';
+import { RequirementWebviewProvider } from './requirementWebViewProvider';
+import { TestWebviewProvider } from './testWebViewProvider';
+import { TestCaseWebviewProvider } from './testCaseWebViewProvider';
 
 export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode>{
     private _onDidChangeTreeData: vscode.EventEmitter<TreeNode | undefined | void> = new vscode.EventEmitter<TreeNode | undefined | void>();
@@ -34,7 +34,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
     }
 
     async addRequirement(parent: TreeNode | null = null): Promise<void> {
-        AddRequirementWebviewProvider.show(parent, (requirement: Requirement) => {
+        RequirementWebviewProvider.show(undefined, (requirement: Requirement) => {
             if (parent) {
                 parent.children.push(requirement);
                 requirement.parent = parent;
@@ -45,7 +45,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
     }
 
     async addTest(parent: TreeNode): Promise<void> {
-        AddTestWebviewProvider.show(parent, (test: TestNode) => {
+        TestWebviewProvider.show(undefined, (test: TestNode) => {
             parent.children.push(test);
             test.parent = parent;
             this.requirements.push(test);
@@ -54,10 +54,82 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
     }
 
     async addTestCase(parent: TreeNode): Promise<void> {
-        AddTestCaseWebviewProvider.show(parent, (testCase: TestCase) => {
+        TestCaseWebviewProvider.show(undefined, (testCase: TestCase) => {
             parent.children.push(testCase);
             testCase.parent = parent;
             this.requirements.push(testCase);
+            this.refresh();
+        });
+    }
+
+    async deleteNode(node: TreeNode): Promise<void> {
+        const confirm = await vscode.window.showQuickPick(['Yes', 'No'], {
+            placeHolder: `Delete requirement "${node.label}"?`,
+        });
+        if (confirm === 'No') {
+            return;
+        }
+    
+        if (node.parent) {
+            const parentIndex = node.parent.children.indexOf(node);
+            if (parentIndex > -1) {
+                node.parent.children.splice(parentIndex, 1);
+            }
+        }
+    
+        const index = this.requirements.indexOf(node);
+        if (index > -1) {
+            this.requirements.splice(index, 1);
+        }
+    
+        node.children.forEach((child) => {
+            this.deleteElement(child);
+        });
+    
+        this.refresh();
+    }
+
+    deleteElement(node: TreeNode): void {
+        const index = this.requirements.indexOf(node);
+        if (index > -1) {
+            this.requirements.splice(index, 1);
+            this.refresh();
+        }
+    }
+
+    editRequirement(node: Requirement): void {
+        RequirementWebviewProvider.show(node, (requirement: Requirement) => {
+            const req = this.requirements.find(req => req.id === node.id);
+            if (req) {
+                req.label = requirement.name;
+                req.description = requirement.description;
+            }
+            this.refresh();
+        });
+    }
+
+    editTest(node: TestNode): void {
+        TestWebviewProvider.show(node, (test: TestNode) => {
+            const testNode = this.requirements.find(req => req.id === node.id);
+            if (testNode) {
+                testNode.label = test.name;
+                testNode.description = test.description;
+            }
+            this.refresh();
+        });
+    }
+
+    editTestCase(node: TestCase): void {
+        TestCaseWebviewProvider.show(node, (updatedTestCase: TestCase) => {
+            const testCaseNode = this.requirements.find(req => req.id === node.id);
+            if (testCaseNode && testCaseNode instanceof TestCase) {
+                testCaseNode.label = updatedTestCase.name;
+                testCaseNode.scenario = updatedTestCase.scenario;
+                testCaseNode.steps = updatedTestCase.steps;
+                testCaseNode.prerequisites = updatedTestCase.prerequisites;
+                testCaseNode.testData = updatedTestCase.testData;
+                testCaseNode.expectedResults = updatedTestCase.expectedResults;
+            }
             this.refresh();
         });
     }
