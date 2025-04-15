@@ -41,17 +41,22 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "typhoon-requirements-tree",
+          "id": "typhoon-requirement-tool-view",
           "title": "Typhoon Requirement Tool",
           "icon": "media/api-wizard.svg"
         }
       ]
     },
     "views": {
-      "typhoon-requirements-tree": [
+      "typhoon-requirement-tool-view": [
         {
           "id": "typhoon-requirement-tool.tree",
           "name": "Typhoon Requirement Tool Tree View",
+          "icon": "media/api-wizard.svg"
+        },
+        {
+          "id": "qm",
+          "name": "Requirement Details",
           "icon": "media/api-wizard.svg"
         }
       ]
