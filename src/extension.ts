@@ -36,10 +36,6 @@ export function activate(context: vscode.ExtensionContext) {
 		requirementDataProvider.addTestCase(node);
 	}));
 
-	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.deleteNode', (node: TreeNode) => {
-		requirementDataProvider.deleteNode(node);
-	}));
-
 	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.editRequirement', (node: Requirement) => {
 		requirementDataProvider.editRequirement(node);
 	}));
@@ -50,6 +46,10 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.editTestCase', (node: TestCase) => {
 		requirementDataProvider.editTestCase(node);
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.deleteNode', (node: TreeNode) => {
+		requirementDataProvider.deleteNode(node);
 	}));
 
 }

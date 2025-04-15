@@ -17,56 +17,56 @@
         "command": "typhoon-requirement-tool.addRequirement",
         "title": "Add Requirement",
         "icon": {
-          "light": "media/light/icon1.svg",
-          "dark": "media/dark/icon1.svg"	
+          "light": "media/light/plus-square.svg",
+          "dark": "media/dark/plus-square.svg"	
         }
       },
       {
         "command": "typhoon-requirement-tool.addTest",
         "title": "Add Test",
         "icon": {
-          "light": "media/light/icon2.svg",
-          "dark": "media/dark/icon2.svg"	
+          "light": "media/light/file-plus.svg",
+          "dark": "media/dark/file-plus.svg"	
         }
       },
       {
         "command": "typhoon-requirement-tool.addTestCase",
         "title": "Add Test Case",
         "icon": {
-          "light": "media/light/icon1.svg",
-          "dark": "media/dark/icon1.svg"	
-        }
-      },
-      {
-        "command": "typhoon-requirement-tool.deleteNode",
-        "title": "Delete Node",
-        "icon": {
-          "light": "media/light/icon2.svg",
-          "dark": "media/dark/icon2.svg"	
+          "light": "media/light/plus-circle.svg",
+          "dark": "media/dark/plus-circle.svg"	
         }
       },
       {
         "command": "typhoon-requirement-tool.editRequirement",
         "title": "Edit Requirement",
         "icon": {
-          "light": "media/light/icon1.svg",
-          "dark": "media/dark/icon1.svg"	
+          "light": "media/light/edit.svg",
+          "dark": "media/dark/edit.svg"	
         }
       },
       {
         "command": "typhoon-requirement-tool.editTest",
         "title": "Edit Test",
         "icon": {
-          "light": "media/light/icon1.svg",
-          "dark": "media/dark/icon1.svg"	
+          "light": "media/light/edit.svg",
+          "dark": "media/dark/edit.svg"	
         }
       },
       {
         "command": "typhoon-requirement-tool.editTestCase",
         "title": "Edit Test Case",
         "icon": {
-          "light": "media/light/icon1.svg",
-          "dark": "media/dark/icon1.svg"	
+          "light": "media/light/edit.svg",
+          "dark": "media/dark/edit.svg"	
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.deleteNode",
+        "title": "Delete Node",
+        "icon": {
+          "light": "media/light/trash.svg",
+          "dark": "media/dark/trash.svg"	
         }
       }
     ],
@@ -106,10 +106,6 @@
           "when": "viewItem == test"
         },
         {
-          "command": "typhoon-requirement-tool.deleteNode",
-          "group": "inline"
-        },
-        {
           "command": "typhoon-requirement-tool.editRequirement",
           "when": "viewItem == requirement",
           "group": "inline"
@@ -122,6 +118,10 @@
         {
           "command": "typhoon-requirement-tool.editTestCase",
           "when": "viewItem == testCase",
+          "group": "inline"
+        },
+        {
+          "command": "typhoon-requirement-tool.deleteNode",
           "group": "inline"
         }
       ],
