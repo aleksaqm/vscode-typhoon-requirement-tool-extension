@@ -15,15 +15,27 @@
     "commands": [
       {
         "command": "typhoon-requirement-tool.addRequirement",
-        "title": "Add Requirement"
+        "title": "Add Requirement",
+        "icon": {
+          "light": "media/light/icon1.svg",
+          "dark": "media/dark/icon1.svg"	
+        }
       },
       {
         "command": "typhoon-requirement-tool.addTest",
-        "title": "Add Test"
+        "title": "Add Test",
+        "icon": {
+          "light": "media/light/icon2.svg",
+          "dark": "media/dark/icon2.svg"	
+        }
       },
       {
         "command": "typhoon-requirement-tool.addTestCase",
-        "title": "Add Test Case"
+        "title": "Add Test Case",
+        "icon": {
+          "light": "media/light/icon1.svg",
+          "dark": "media/dark/icon1.svg"	
+        }
       }
     ],
     "viewsContainers": {
@@ -59,6 +71,23 @@
         {
           "command": "typhoon-requirement-tool.addTestCase",
           "group": "inline",
+          "when": "viewItem == test"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "typhoon-requirement-tool.addRequirement",
+          "when": "view == typhoon-requirement-tool.tree",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "typhoon-requirement-tool.addTest",
+          "when": "viewItem == requirement"
+        },
+        {
+          "command": "typhoon-requirement-tool.addTestCase",
           "when": "viewItem == test"
         }
       ]

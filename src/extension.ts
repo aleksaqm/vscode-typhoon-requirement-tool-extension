@@ -7,8 +7,6 @@ export function activate(context: vscode.ExtensionContext) {
 
 	console.log('Congratulations, your extension "typhoon-requirement-tool" is now active!');
 
-	
-
 	const requirementDataProvider = new RequirementTreeProvider();
 	vscode.window.registerTreeDataProvider('typhoon-requirement-tool.tree', requirementDataProvider);
 

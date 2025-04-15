@@ -8,6 +8,7 @@ export class TestCase extends TreeNode{
         public readonly scenario: string,
         public readonly steps: string[],
         public readonly prerequisites: string[],
+        public readonly testData: string[],
         public readonly expectedResults: string[],
     ){
         super(name, vscode.TreeItemCollapsibleState.Collapsed, 'testCase');
