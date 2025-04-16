@@ -97,6 +97,28 @@ export function activate(context: vscode.ExtensionContext) {
 
 	}));
 
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.importFromReqIF', async () => {
+		const openUri = await vscode.window.showOpenDialog({
+			filters: { 'ReqIF Files': ['reqif'] },
+			canSelectMany: false,
+		});
+
+		if (!openUri || openUri.length === 0) {
+			vscode.window.showErrorMessage('Import cancelled. No file selected.');
+			return;
+		}
+
+		try{
+			const fileContent = await vscode.workspace.fs.readFile(openUri[0]);
+			const reqifContent = fileContent.toString();
+			requirementDataProvider.importFromReqIF(reqifContent);
+			vscode.window.showInformationMessage(`Requirements imported from ${openUri[0].fsPath}`);
+		}catch (error : any) {
+			vscode.window.showErrorMessage('Error importing requirements from ReqIF: ' + error.message);
+		}
+	}));
+
+
 }
 
 export function deactivate() {}

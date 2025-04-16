@@ -9,6 +9,7 @@ import { TestWebviewProvider } from './testWebViewProvider';
 import { TestCaseWebviewProvider } from './testCaseWebViewProvider';
 import { DetailsViewProvider } from './detailsViewProvider';
 import * as xmlbuilder from 'xmlbuilder';
+import * as xml2js from 'xml2js';
 
 export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode>{
     private _onDidChangeTreeData: vscode.EventEmitter<TreeNode | undefined | void> = new vscode.EventEmitter<TreeNode | undefined | void>();
@@ -39,7 +40,9 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
     }
 
     onNodeSelected(node: TreeNode): void {
+        // console.log("NODE SELECTED ", node);
         if (this.detailsViewProvider) {
+            // console.log("NODE SELECTED ", node);
             this.detailsViewProvider.updateDetails(node);
         }
     }
@@ -111,6 +114,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
     editRequirement(node: Requirement): void {
         RequirementWebviewProvider.show(node, (requirement: Requirement) => {
             const req = this.requirements.find(req => req.id === node.id);
+
             if (req) {
                 req.label = requirement.name;
                 req.description = requirement.description;
@@ -123,6 +127,8 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
     editTest(node: TestNode): void {
         TestWebviewProvider.show(node, (test: TestNode) => {
             const testNode = this.requirements.find(req => req.id === node.id);
+            console.log("ovaj menjaj ",testNode);
+
             if (testNode) {
                 testNode.label = test.name;
                 testNode.description = test.description;
@@ -174,11 +180,78 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
             specObject.ele('IDENTIFIER', node.id);
             specObject.ele('NAME', node.label);
             specObject.ele('DESCRIPTION', node.description || '');
+            specObject.ele('TYPE', node.contextValue);
             // specObject.ele('TYPE', node.type);
 
             if (node.children && node.children.length > 0) {
                 const childSpecifications = specObject.ele('CHILDREN');
                 this.serializeTree(node.children, childSpecifications);
+            }
+        }
+    }
+
+    async importFromReqIF(reqifContent: string): Promise<void> {
+        const parser = new xml2js.Parser({ explicitArray: false });
+        try {
+            const parsedData = await parser.parseStringPromise(reqifContent);
+
+            const specifications = parsedData['REQ-IF']['CORE-CONTENT']['SPECIFICATIONS']['SPEC-OBJECT'];
+
+            if (!specifications) {
+                vscode.window.showErrorMessage('No specifications found in the ReqIF file.');
+                return;
+            }
+
+            this.requirements = [];
+
+            this.parseSpecifications(specifications);
+
+            this.refresh();
+        } catch (error : any) {
+            vscode.window.showErrorMessage(`Failed to parse ReqIF file: ${error.message}`);
+        }
+    }
+
+    private parseSpecifications(specifications: any): void{
+        const parseNode = (spec: any, parent: TreeNode | null = null): TreeNode | null => {
+            var node : TreeNode;	
+            if (spec['TYPE'] === 'requirement'){
+                node = new Requirement(
+                    spec['IDENTIFIER'],
+                    spec['NAME'],
+                    spec['DESCRIPTION'] || ''
+                );
+            }else if (spec['TYPE'] === 'test'){
+                node = new TestNode(
+                    spec['IDENTIFIER'],
+                    spec['NAME'],
+                    spec['DESCRIPTION'] || '',
+                );
+            }else{
+                return null;
+            }
+            node.description = spec['DESCRIPTION'] || '';
+            node.parent = parent;
+
+            if (spec['CHILDREN'] && spec['CHILDREN']['SPEC-OBJECT']) {
+                const children = Array.isArray(spec['CHILDREN']['SPEC-OBJECT'])
+                    ? spec['CHILDREN']['SPEC-OBJECT']
+                    : [spec['CHILDREN']['SPEC-OBJECT']];
+                node.children = children
+                    .map((childSpec: any) => parseNode(childSpec, node))
+                    .filter((child): child is TreeNode => child !== null);
+                node.children.forEach(child => {
+                    this.requirements.push(child);
+                });
+            }
+            return node;
+        };
+
+        const specsArray = Array.isArray(specifications) ? specifications : [specifications];
+        for (const spec of specsArray) {
+            const parsedNode = parseNode(spec);
+            if (parsedNode) {
+                this.requirements.push(parsedNode);
             }
         }
 

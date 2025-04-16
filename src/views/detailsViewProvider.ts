@@ -21,6 +21,7 @@ export class DetailsViewProvider implements vscode.WebviewViewProvider {
     }
 
     updateDetails(node: TreeNode): void {
+        // console.log("NODE SELECTED ", node);
         if (this._view) {
             this._view.webview.postMessage({ command: 'update', data: this.getNodeDetails(node) });
         }

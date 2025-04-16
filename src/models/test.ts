@@ -7,7 +7,7 @@ export class TestNode extends TreeNode{
         public readonly name: string,
         public readonly description: string,
     ){
-        super(name, vscode.TreeItemCollapsibleState.Collapsed, 'test');
+        super(id, name, vscode.TreeItemCollapsibleState.Collapsed, 'test');
         this.tooltip = `${this.name} - ${this.description}`;
         this.description = this.description || 'No description available';
     }
