@@ -39,10 +39,8 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         this._onDidChangeTreeData.fire();
     }
 
-    onNodeSelected(node: TreeNode): void {
-        // console.log("NODE SELECTED ", node);
+    onNodeSelected(node: TreeNode | null): void {
         if (this.detailsViewProvider) {
-            // console.log("NODE SELECTED ", node);
             this.detailsViewProvider.updateDetails(node);
         }
     }
@@ -101,6 +99,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         });
     
         this.refresh();
+        this.onNodeSelected(null);
     }
 
     deleteElement(node: TreeNode): void {
