@@ -10,6 +10,7 @@ export class TestCase extends TreeNode{
         public prerequisites: string[],
         public testData: string[],
         public expectedResults: string[],
+        public parameters: Parameter[] = [],
     ){
         super(name, vscode.TreeItemCollapsibleState.Collapsed, 'testCase');
         this.description = this.scenario;
@@ -18,5 +19,10 @@ export class TestCase extends TreeNode{
 
     canHaveChildren(): boolean {
         return false;
+    }
+}
+
+export class Parameter{
+    constructor(public name: string, public type: string, public value: any){
     }
 }

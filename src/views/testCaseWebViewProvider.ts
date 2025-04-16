@@ -15,19 +15,21 @@ export class TestCaseWebviewProvider {
 
         panel.webview.onDidReceiveMessage((message) => {
             if (message.command === 'submit') {
-                const { name, scenario, steps, prerequisites, testData, expectedResults } = message.data;
-                if (name && scenario && steps && prerequisites && expectedResults) {
+                const { name, scenario, steps, prerequisites, testData, expectedResults, parameters } = message.data;
+                if (name && scenario && steps && prerequisites && expectedResults && parameters) {
                     if (node) {
                         const id = node.id!;
-                        onSubmit(new TestCase(id, name, scenario, steps, prerequisites, testData, expectedResults));
+                        onSubmit(new TestCase(id, name, scenario, steps, prerequisites, testData, expectedResults, parameters));
                         panel.dispose();
                     }
-                    const newTestCase = new TestCase(getUniqueId(), name, scenario, steps, prerequisites, testData, expectedResults);
+                    const newTestCase = new TestCase(getUniqueId(), name, scenario, steps, prerequisites, testData, expectedResults, parameters);
                     onSubmit(newTestCase);
                     panel.dispose();
                 } else {
                     vscode.window.showErrorMessage('Please fill in all fields.');
                 }
+            }else if (message.command === 'error') {
+                vscode.window.showErrorMessage(message.message);
             }
         });
     }
@@ -39,6 +41,7 @@ export class TestCaseWebviewProvider {
         const prerequisites = node ? node.prerequisites : [];
         const testData = node ? node.testData : [];
         const expectedResults = node ? node.expectedResults : [];
+        const parameters = node ? node.parameters : [];
     
         return `
             <!DOCTYPE html>
@@ -56,7 +59,7 @@ export class TestCaseWebviewProvider {
                         display: block;
                         margin-top: 10px;
                     }
-                    input, textarea {
+                    input, textarea, select {
                         width: 50%;
                         padding: 8px;
                         margin-top: 5px;
@@ -116,6 +119,31 @@ export class TestCaseWebviewProvider {
                     ${this.getDynamicListHtml('testData', 'Test Data', testData)}
                     ${this.getDynamicListHtml('expectedResults', 'Expected Results', expectedResults)}
                     <br>
+                    <label for="parameters">Parameters:</label>
+                    <div id="parametersSection">
+                        <input type="text" id="parameterName" placeholder="Parameter Name" />
+                        <select id="parameterType">
+                            <option value="string">String</option>
+                            <option value="int">Integer</option>
+                            <option value="float">Float</option>
+                            <option value="bool">Boolean</option>
+                            <option value="array">Array</option>
+                        </select>
+                        <input type="text" id="parameterValue" placeholder="Parameter Value" />
+                        <button type="button" id="addParameterButton">Add Parameter</button>
+                        <ul id="parametersList">
+                            ${parameters
+                                .map(
+                                    (param, index) => `
+                                    <li>
+                                        ${param.name} -> ${param.value} : ${param.type}
+                                        <button type="button" class="remove-button" onclick="removeParameter(${index})">Remove</button>
+                                    </li>
+                                `
+                                )
+                                .join('')}
+                        </ul>
+                    </div>
                     <button type="button" id="submitButton">${node ? 'Save Changes' : 'Submit'}</button>
                 </form>
     
@@ -160,6 +188,66 @@ export class TestCaseWebviewProvider {
     
                     // Initialize lists with existing values
                     Object.keys(lists).forEach(updateList);
+
+                    const parameters = ${JSON.stringify(parameters)};
+
+                    document.getElementById('addParameterButton').addEventListener('click', () => {
+                        const name = document.getElementById('parameterName').value.trim();
+                        const type = document.getElementById('parameterType').value;
+                        var value = document.getElementById('parameterValue').value.trim();
+
+                        if (name && type && value) {
+                            if (parameters.some(param => param.name === name)) {
+                                vscode.postMessage({
+                                    command: 'error',
+                                    message: "A parameter with the name \'" + name + "\' already exists. Please use a unique name."
+                                });
+                                return;
+                            }
+                            if (!isValidType(type, value)) {
+                                vscode.postMessage({
+                                    command: 'error',
+                                    message: 'Invalid value for the selected type.'
+                                });
+                                return;
+                            }
+                            if (type === 'bool'){
+                                value = value.toLowerCase();
+                                console.log(value);
+                            }
+                            parameters.push({ name, type, value });
+                            updateParametersList();
+                            document.getElementById('parameterName').value = '';
+                            document.getElementById('parameterValue').value = '';
+                        }else{
+                            vscode.postMessage({
+                                command: 'error',
+                                message: 'Please fill in all parameter fields.'
+                            });
+                        }
+                    });
+
+                    function removeParameter(index) {
+                        parameters.splice(index, 1);
+                        updateParametersList();
+                    }
+
+                    function updateParametersList() {
+                        const parametersList = document.getElementById('parametersList');
+                        parametersList.innerHTML = '';
+                        parameters.forEach((param, index) => {
+                            const li = document.createElement('li');
+                            li.textContent = \`\${param.name} : \${param.type} --> \${param.value}\`;
+                            const removeButton = document.createElement('button');
+                            removeButton.textContent = 'Remove';
+                            removeButton.className = 'remove-button';
+                            removeButton.addEventListener('click', () => removeParameter(index));
+                            li.appendChild(removeButton);
+                            parametersList.appendChild(li);
+                        });
+                    }
+
+                    
     
                     document.getElementById('submitButton').addEventListener('click', () => {
                         const name = document.getElementById('name').value;
@@ -173,10 +261,33 @@ export class TestCaseWebviewProvider {
                                 steps: lists.steps,
                                 prerequisites: lists.prerequisites,
                                 testData: lists.testData,
-                                expectedResults: lists.expectedResults
+                                expectedResults: lists.expectedResults,
+                                parameters,
                             }
                         });
                     });
+
+                    function isValidType(type, value) {
+                        switch (type) {
+                            case 'int':
+                                return Number.isInteger(Number(value)); // Checks if the value is an integer
+                            case 'float':
+                                return !isNaN(value) && Number(value) === parseFloat(value); // Checks if the value is a float
+                            case 'bool':
+                                return value.toLowerCase() === 'true' || value.toLowerCase() === 'false'; // Matches "true" or "false" (case-insensitive)
+                            case 'string':
+                                return typeof value === 'string'; // Always true for strings
+                            case 'array':
+                                try {
+                                    const parsed = JSON.parse(value);
+                                    return Array.isArray(parsed); // Checks if the value is a valid JSON array
+                                } catch {
+                                    return false;
+                                }
+                            default:
+                                return false; // Invalid type
+                        }
+                    }
                 </script>
             </body>
             </html>
