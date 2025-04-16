@@ -1,26 +1,81 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import { Requirement } from './models/requirement';
+import { RequirementTreeProvider } from './views/requirementTreeViewProvider';
+import { TreeNode } from './models/treeNode';
+import { TestNode } from './models/test';
+import { TestCase } from './models/testCase';
+import { DetailsViewProvider } from './views/detailsViewProvider';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
 	console.log('Congratulations, your extension "typhoon-requirement-tool" is now active!');
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('typhoon-requirement-tool.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from Typhoon Requirement Tool!');
-	});
+	const detailsViewProvider = new DetailsViewProvider(context);
 
-	context.subscriptions.push(disposable);
+	const requirementDataProvider = new RequirementTreeProvider(detailsViewProvider);
+
+	const treeView = vscode.window.createTreeView('typhoon-requirement-tool.tree', {
+        treeDataProvider: requirementDataProvider,
+    });
+
+	vscode.window.registerWebviewViewProvider(DetailsViewProvider.viewType, detailsViewProvider);
+
+	treeView.onDidChangeSelection((event) => {
+        const selectedNode = event.selection[0];
+        if (selectedNode) {
+            requirementDataProvider.onNodeSelected(selectedNode);
+        }
+    });
+
+    context.subscriptions.push(treeView);
+
+
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.helloQm', () => {
+		vscode.window.showInformationMessage('Hello Qm from Typhoon Requirement Tool!');
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.addRequirement', (node: Requirement) => {
+		requirementDataProvider.addRequirement(node);
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.addTest', (node: TreeNode) => {
+		if (!node) {
+			vscode.window.showErrorMessage('No requirement selected. You cant add test without requirement.');
+			return;
+		}
+		requirementDataProvider.addTest(node);
+	}));
+	
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.addTestCase', (node: TreeNode) => {
+		if (!node) {
+			vscode.window.showErrorMessage('No test selected. You cant add test case without test.');
+			return;
+		}
+		requirementDataProvider.addTestCase(node);
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.editRequirement', (node: Requirement) => {
+		requirementDataProvider.editRequirement(node);
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.editTest', (node: TestNode) => {
+		requirementDataProvider.editTest(node);
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.editTestCase', (node: TestCase) => {
+		requirementDataProvider.editTestCase(node);
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.deleteNode', (node: TreeNode) => {
+		requirementDataProvider.deleteNode(node);
+	}));
+
+	context.subscriptions.push(
+        vscode.commands.registerCommand('typhoon-requirement-tool.selectNode', (node: TreeNode) => {
+            requirementDataProvider.onNodeSelected(node);
+        })
+    );
+
 }
 
-// This method is called when your extension is deactivated
 export function deactivate() {}
