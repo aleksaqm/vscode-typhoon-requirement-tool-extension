@@ -4,13 +4,31 @@ import { RequirementTreeProvider } from './views/requirementTreeViewProvider';
 import { TreeNode } from './models/treeNode';
 import { TestNode } from './models/test';
 import { TestCase } from './models/testCase';
+import { DetailsViewProvider } from './views/detailsViewProvider';
 
 export function activate(context: vscode.ExtensionContext) {
 
 	console.log('Congratulations, your extension "typhoon-requirement-tool" is now active!');
 
-	const requirementDataProvider = new RequirementTreeProvider();
-	vscode.window.registerTreeDataProvider('typhoon-requirement-tool.tree', requirementDataProvider);
+	const detailsViewProvider = new DetailsViewProvider(context);
+
+	const requirementDataProvider = new RequirementTreeProvider(detailsViewProvider);
+
+	const treeView = vscode.window.createTreeView('typhoon-requirement-tool.tree', {
+        treeDataProvider: requirementDataProvider,
+    });
+
+	vscode.window.registerWebviewViewProvider(DetailsViewProvider.viewType, detailsViewProvider);
+
+	treeView.onDidChangeSelection((event) => {
+        const selectedNode = event.selection[0];
+        if (selectedNode) {
+            requirementDataProvider.onNodeSelected(selectedNode);
+        }
+    });
+
+    context.subscriptions.push(treeView);
+
 
 	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.helloQm', () => {
 		vscode.window.showInformationMessage('Hello Qm from Typhoon Requirement Tool!');
@@ -51,6 +69,12 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.deleteNode', (node: TreeNode) => {
 		requirementDataProvider.deleteNode(node);
 	}));
+
+	context.subscriptions.push(
+        vscode.commands.registerCommand('typhoon-requirement-tool.selectNode', (node: TreeNode) => {
+            requirementDataProvider.onNodeSelected(node);
+        })
+    );
 
 }
 

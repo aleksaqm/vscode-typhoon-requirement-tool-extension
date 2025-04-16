@@ -7,14 +7,18 @@ import { TestCase } from '../models/testCase';
 import { RequirementWebviewProvider } from './requirementWebViewProvider';
 import { TestWebviewProvider } from './testWebViewProvider';
 import { TestCaseWebviewProvider } from './testCaseWebViewProvider';
+import { DetailsViewProvider } from './detailsViewProvider';
 
 export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode>{
     private _onDidChangeTreeData: vscode.EventEmitter<TreeNode | undefined | void> = new vscode.EventEmitter<TreeNode | undefined | void>();
     readonly onDidChangeTreeData: vscode.Event<TreeNode | undefined | void> = this._onDidChangeTreeData.event;
 
     private requirements: TreeNode[] = [];
+    private detailsViewProvider?: DetailsViewProvider;
 
-    constructor() {}
+    constructor(detailsViewProvider?: DetailsViewProvider) {
+        this.detailsViewProvider = detailsViewProvider;
+    }
 
     getTreeItem(element: TreeNode): vscode.TreeItem {
         return element;
@@ -31,6 +35,12 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
 
     refresh(): void {
         this._onDidChangeTreeData.fire();
+    }
+
+    onNodeSelected(node: TreeNode): void {
+        if (this.detailsViewProvider) {
+            this.detailsViewProvider.updateDetails(node);
+        }
     }
 
     async addRequirement(parent: TreeNode | null = null): Promise<void> {
@@ -105,6 +115,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
                 req.description = requirement.description;
             }
             this.refresh();
+            this.onNodeSelected(req!);
         });
     }
 
@@ -116,6 +127,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
                 testNode.description = test.description;
             }
             this.refresh();
+            this.onNodeSelected(testNode!);
         });
     }
 
@@ -131,6 +143,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
                 testCaseNode.expectedResults = updatedTestCase.expectedResults;
             }
             this.refresh();
+            this.onNodeSelected(testCaseNode!);
         });
     }
 

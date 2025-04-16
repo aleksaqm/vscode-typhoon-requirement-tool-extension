@@ -68,6 +68,14 @@
           "light": "media/light/trash.svg",
           "dark": "media/dark/trash.svg"	
         }
+      },
+      {
+        "command": "typhoon-requirement-tool.selectNode",
+        "title": "Select Node",
+        "icon": {
+          "light": "media/light/edit.svg",
+          "dark": "media/dark/edit.svg"	
+        }
       }
     ],
     "viewsContainers": {
@@ -84,6 +92,12 @@
         {
           "id": "typhoon-requirement-tool.tree",
           "name": "Typhoon Requirement Tool Tree",
+          "icon": "media/api-wizard.svg"
+        },
+        {
+          "id": "typhoon-requirement-tool.details",
+          "name": "Requirement Details",
+          "type": "webview",
           "icon": "media/api-wizard.svg"
         }
       ]
