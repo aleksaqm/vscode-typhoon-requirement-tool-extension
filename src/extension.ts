@@ -76,6 +76,27 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.exportToReqIF', async () => {
+		const saveUri = await vscode.window.showSaveDialog({
+			filters: { 'ReqIF Files': ['reqif'] },
+			defaultUri: vscode.Uri.file('requirements'),
+		});
+
+		if (!saveUri) {
+			vscode.window.showErrorMessage('Export cancelled. No file selected.');
+			return;
+		}
+
+		try{
+			const reqifContent = requirementDataProvider.exportToReqIF();
+			await vscode.workspace.fs.writeFile(saveUri, Buffer.from(reqifContent, 'utf-8'));
+			vscode.window.showInformationMessage('Requirements exported to ReqIF file successfully!');
+		}catch (error : any) {
+			vscode.window.showErrorMessage('Error exporting requirements to ReqIF: ' + error.message);
+		}
+
+	}));
+
 }
 
 export function deactivate() {}

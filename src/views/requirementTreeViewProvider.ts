@@ -8,6 +8,7 @@ import { RequirementWebviewProvider } from './requirementWebViewProvider';
 import { TestWebviewProvider } from './testWebViewProvider';
 import { TestCaseWebviewProvider } from './testCaseWebViewProvider';
 import { DetailsViewProvider } from './detailsViewProvider';
+import * as xmlbuilder from 'xmlbuilder';
 
 export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode>{
     private _onDidChangeTreeData: vscode.EventEmitter<TreeNode | undefined | void> = new vscode.EventEmitter<TreeNode | undefined | void>();
@@ -145,6 +146,42 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
             this.refresh();
             this.onNodeSelected(testCaseNode!);
         });
+    }
+
+    exportToReqIF(): string{
+        const root = xmlbuilder.create('REQ-IF', { version: '1.0', encoding: 'UTF-8' })
+            .att('xmlns', 'http://www.omg.org/spec/ReqIF/20110401/reqif.xsd');
+
+        const header = root.ele('REQ-IF-HEADER');
+        header.ele('CREATION-TIME', new Date().toISOString());
+        header.ele('TITLE', 'Exported Requirements');
+
+        const coreContent = root.ele('CORE-CONTENT');
+        const specifications = coreContent.ele('SPECIFICATIONS');
+
+        const rootNodes = this.requirements.filter(node => !node.parent);
+        this.serializeTree(rootNodes, specifications);
+
+        return root.end({ pretty: true });
+    }
+
+    private serializeTree(nodes: TreeNode[], parentXml: xmlbuilder.XMLElement): void {
+        for (const node of nodes) {
+            if (node instanceof TestCase){
+                continue;
+            }
+            const specObject = parentXml.ele('SPEC-OBJECT');
+            specObject.ele('IDENTIFIER', node.id);
+            specObject.ele('NAME', node.label);
+            specObject.ele('DESCRIPTION', node.description || '');
+            // specObject.ele('TYPE', node.type);
+
+            if (node.children && node.children.length > 0) {
+                const childSpecifications = specObject.ele('CHILDREN');
+                this.serializeTree(node.children, childSpecifications);
+            }
+        }
+
     }
 
 }
