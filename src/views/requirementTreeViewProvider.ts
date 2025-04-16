@@ -147,6 +147,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
                 testCaseNode.prerequisites = updatedTestCase.prerequisites;
                 testCaseNode.testData = updatedTestCase.testData;
                 testCaseNode.expectedResults = updatedTestCase.expectedResults;
+                testCaseNode.parameters = updatedTestCase.parameters;
             }
             this.refresh();
             this.onNodeSelected(testCaseNode!);
