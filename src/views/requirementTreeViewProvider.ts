@@ -303,6 +303,12 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
                     node.children.forEach(child => serializeNode(child, node.id));
                 }
             }
+            else if (node instanceof TestNode){
+                rows.push(`${node.id},${node.label},${node.description || ''},'',${node.contextValue},${parentID || ''}`);
+                // if (node.children && node.children.length > 0) {
+                //     node.children.forEach(child => serializeNode(child, node.id));
+                // }
+            }
         };
     
         const rootNodes = this.requirements.filter(node => !node.parent);
@@ -321,7 +327,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
     
         const nodesMap: Map<string, TreeNode> = new Map();
         const rootNodes: TreeNode[] = [];
-    
+        this.requirements = [];
         rows.forEach(row => {
             const [id, name, description,priority, type, parentID] = row.split(',');
     
@@ -329,9 +335,9 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
             if (type === 'requirement') {
                 node = new Requirement(id, name, description, priority as "High" | "Medium" | "Low");
             } 
-            // else if (type === 'test') {
-            //     node = new TestNode(id, name, description);
-            // } 
+            else if (type === 'test') {
+                node = new TestNode(id, name, description);
+            } 
             else {
                 return;
             }
