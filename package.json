@@ -176,6 +176,14 @@
           "command": "typhoon-requirement-tool.addRequirement",
           "when": "view == typhoon-requirement-tool.tree",
           "group": "navigation"
+        },
+        {
+          "command": "typhoon-requirement-tool.importFromReqIF",
+          "when": "view == typhoon-requirement-tool.tree"
+        },
+        {
+          "command": "typhoon-requirement-tool.importFromCSV",
+          "when": "view == typhoon-requirement-tool.tree"
         }
       ],
       "commandPalette": [

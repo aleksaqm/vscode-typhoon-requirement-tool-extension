@@ -10,6 +10,7 @@ import { TestCaseWebviewProvider } from './testCaseWebViewProvider';
 import { DetailsViewProvider } from './detailsViewProvider';
 import * as xmlbuilder from 'xmlbuilder';
 import * as xml2js from 'xml2js';
+import { parseRequirement, parseTest, parseTestCase } from '../utils/reqifParser';
 
 export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode>{
     private _onDidChangeTreeData: vscode.EventEmitter<TreeNode | undefined | void> = new vscode.EventEmitter<TreeNode | undefined | void>();
@@ -173,9 +174,6 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
 
     private serializeTree(nodes: TreeNode[], parentXml: xmlbuilder.XMLElement): void {
         for (const node of nodes) {
-            if (node instanceof TestCase || node instanceof TestNode) {
-                continue;
-            }
             if (node instanceof Requirement){
                 const specObject = parentXml.ele('SPEC-OBJECT');
                 specObject.ele('IDENTIFIER', node.id);
@@ -189,6 +187,37 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
                     const childSpecifications = specObject.ele('CHILDREN');
                     this.serializeTree(node.children, childSpecifications);
                 }
+            }
+            else if (node instanceof TestNode){
+                const specObject = parentXml.ele('SPEC-OBJECT');
+                specObject.ele('IDENTIFIER', node.id);
+                specObject.ele('NAME', node.label);
+                specObject.ele('DESCRIPTION', node.description || '');
+                specObject.ele('TYPE', node.contextValue);
+
+                if (node.children && node.children.length > 0) {
+                    const childSpecifications = specObject.ele('CHILDREN');
+                    this.serializeTree(node.children, childSpecifications);
+                }
+            }
+            else if (node instanceof TestCase){
+                const specObject = parentXml.ele('SPEC-OBJECT');
+                specObject.ele('IDENTIFIER', node.id);
+                specObject.ele('NAME', node.name);
+                specObject.ele('SCENARIO', node.scenario || '');
+                specObject.ele('TYPE', node.contextValue);
+                specObject.ele('STEPS', node.steps.join('|'));
+                specObject.ele('PREREQUISITES', node.prerequisites.join('|')); 
+                specObject.ele('TEST-DATA', node.testData.join('|'));
+                specObject.ele('EXPECTED-RESULTS', node.expectedResults.join('|'));
+
+                const parametersElement = specObject.ele('PARAMETERS');
+                node.parameters.forEach(param => {
+                    const paramElement = parametersElement.ele('PARAMETER');
+                    paramElement.ele('NAME', param.name);
+                    paramElement.ele('TYPE', param.type);
+                    paramElement.ele('VALUE', param.value);
+                });
             }
         }
     }
@@ -219,24 +248,17 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         const parseNode = (spec: any, parent: TreeNode | null = null): TreeNode | null => {
             var node : TreeNode;	
             if (spec['TYPE'] === 'requirement'){
-                node = new Requirement(
-                    spec['IDENTIFIER'],
-                    spec['NAME'],
-                    spec['DESCRIPTION'] || '',
-                    spec['PRIORITY'] || 'Medium',
-                );
+                node = parseRequirement(spec);
             }
-            // else if (spec['TYPE'] === 'test'){
-            //     node = new TestNode(
-            //         spec['IDENTIFIER'],
-            //         spec['NAME'],
-            //         spec['DESCRIPTION'] || '',
-            //     );
-            // }
+            else if (spec['TYPE'] === 'test'){
+                node = parseTest(spec);
+            }
+            else if (spec['TYPE'] === 'testCase'){
+                node = parseTestCase(spec);
+            }
             else{
                 return null;
             }
-            node.description = spec['DESCRIPTION'] || '';
             node.parent = parent;
 
             if (spec['CHILDREN'] && spec['CHILDREN']['SPEC-OBJECT']) {
@@ -260,7 +282,9 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
                 this.requirements.push(parsedNode);
             }
         }
+
     }
+
 
     exportToCSV(): string {
         const rows: string[] = [];
