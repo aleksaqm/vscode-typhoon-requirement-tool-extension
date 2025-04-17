@@ -37,6 +37,7 @@ export class DetailsViewProvider implements vscode.WebviewViewProvider {
                 <h2>Requirement Details</h2>
                 <p><strong>Name:</strong> ${node.label}</p>
                 <p><strong>Description:</strong> ${node.description}</p>
+                <p><strong>Priority:</strong> ${node.priority}</p>
             `;
         } else if (node instanceof TestNode) {
             return `

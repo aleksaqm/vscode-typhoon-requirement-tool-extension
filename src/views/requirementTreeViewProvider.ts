@@ -114,9 +114,10 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         RequirementWebviewProvider.show(node, (requirement: Requirement) => {
             const req = this.requirements.find(req => req.id === node.id);
 
-            if (req) {
+            if (req && req instanceof Requirement) {
                 req.label = requirement.name;
                 req.description = requirement.description;
+                req.priority = requirement.priority;
             }
             this.refresh();
             this.onNodeSelected(req!);
@@ -172,19 +173,22 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
 
     private serializeTree(nodes: TreeNode[], parentXml: xmlbuilder.XMLElement): void {
         for (const node of nodes) {
-            if (node instanceof TestCase){
+            if (node instanceof TestCase || node instanceof TestNode) {
                 continue;
             }
-            const specObject = parentXml.ele('SPEC-OBJECT');
-            specObject.ele('IDENTIFIER', node.id);
-            specObject.ele('NAME', node.label);
-            specObject.ele('DESCRIPTION', node.description || '');
-            specObject.ele('TYPE', node.contextValue);
-            // specObject.ele('TYPE', node.type);
+            if (node instanceof Requirement){
+                const specObject = parentXml.ele('SPEC-OBJECT');
+                specObject.ele('IDENTIFIER', node.id);
+                specObject.ele('NAME', node.label);
+                specObject.ele('DESCRIPTION', node.description || '');
+                specObject.ele('PRIORITY', node.priority);
+                specObject.ele('TYPE', node.contextValue);
+                // specObject.ele('TYPE', node.type);
 
-            if (node.children && node.children.length > 0) {
-                const childSpecifications = specObject.ele('CHILDREN');
-                this.serializeTree(node.children, childSpecifications);
+                if (node.children && node.children.length > 0) {
+                    const childSpecifications = specObject.ele('CHILDREN');
+                    this.serializeTree(node.children, childSpecifications);
+                }
             }
         }
     }
@@ -218,15 +222,18 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
                 node = new Requirement(
                     spec['IDENTIFIER'],
                     spec['NAME'],
-                    spec['DESCRIPTION'] || ''
-                );
-            }else if (spec['TYPE'] === 'test'){
-                node = new TestNode(
-                    spec['IDENTIFIER'],
-                    spec['NAME'],
                     spec['DESCRIPTION'] || '',
+                    spec['PRIORITY'] || 'Medium',
                 );
-            }else{
+            }
+            // else if (spec['TYPE'] === 'test'){
+            //     node = new TestNode(
+            //         spec['IDENTIFIER'],
+            //         spec['NAME'],
+            //         spec['DESCRIPTION'] || '',
+            //     );
+            // }
+            else{
                 return null;
             }
             node.description = spec['DESCRIPTION'] || '';
@@ -257,12 +264,14 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
 
     exportToCSV(): string {
         const rows: string[] = [];
-        rows.push('ID,Name,Description,Type,ParentID');
+        rows.push('ID,Name,Description,Priority,Type,ParentID');
     
         const serializeNode = (node: TreeNode, parentID: string | null) => {
-            rows.push(`${node.id},${node.label},${node.description || ''},${node.contextValue},${parentID || ''}`);
-            if (node.children && node.children.length > 0) {
-                node.children.forEach(child => serializeNode(child, node.id));
+            if (node instanceof Requirement){
+                rows.push(`${node.id},${node.label},${node.description || ''},${node.priority},${node.contextValue},${parentID || ''}`);
+                if (node.children && node.children.length > 0) {
+                    node.children.forEach(child => serializeNode(child, node.id));
+                }
             }
         };
     
@@ -275,7 +284,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
     importFromCSV(csvContent: string): void {
         const rows = csvContent.split('\n').map(row => row.trim()).filter(row => row.length > 0);
         const header = rows.shift();
-        if (!header || header !== 'ID,Name,Description,Type,ParentID') {
+        if (!header || header !== 'ID,Name,Description,Priority,Type,ParentID') {
             vscode.window.showErrorMessage('Invalid CSV format.');
             return;
         }
@@ -284,14 +293,15 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         const rootNodes: TreeNode[] = [];
     
         rows.forEach(row => {
-            const [id, name, description, type, parentID] = row.split(',');
+            const [id, name, description,priority, type, parentID] = row.split(',');
     
             let node: TreeNode;
             if (type === 'requirement') {
-                node = new Requirement(id, name, description);
-            } else if (type === 'test') {
-                node = new TestNode(id, name, description);
+                node = new Requirement(id, name, description, priority as "High" | "Medium" | "Low");
             } 
+            // else if (type === 'test') {
+            //     node = new TestNode(id, name, description);
+            // } 
             else {
                 return;
             }
