@@ -126,7 +126,6 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
     editTest(node: TestNode): void {
         TestWebviewProvider.show(node, (test: TestNode) => {
             const testNode = this.requirements.find(req => req.id === node.id);
-            console.log("ovaj menjaj ",testNode);
 
             if (testNode) {
                 testNode.label = test.name;
@@ -254,7 +253,66 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
                 this.requirements.push(parsedNode);
             }
         }
+    }
 
+    exportToCSV(): string {
+        const rows: string[] = [];
+        rows.push('ID,Name,Description,Type,ParentID');
+    
+        const serializeNode = (node: TreeNode, parentID: string | null) => {
+            rows.push(`${node.id},${node.label},${node.description || ''},${node.contextValue},${parentID || ''}`);
+            if (node.children && node.children.length > 0) {
+                node.children.forEach(child => serializeNode(child, node.id));
+            }
+        };
+    
+        const rootNodes = this.requirements.filter(node => !node.parent);
+        rootNodes.forEach(node => serializeNode(node, null));
+    
+        return rows.join('\n');
+    }
+
+    importFromCSV(csvContent: string): void {
+        const rows = csvContent.split('\n').map(row => row.trim()).filter(row => row.length > 0);
+        const header = rows.shift();
+        if (!header || header !== 'ID,Name,Description,Type,ParentID') {
+            vscode.window.showErrorMessage('Invalid CSV format.');
+            return;
+        }
+    
+        const nodesMap: Map<string, TreeNode> = new Map();
+        const rootNodes: TreeNode[] = [];
+    
+        rows.forEach(row => {
+            const [id, name, description, type, parentID] = row.split(',');
+    
+            let node: TreeNode;
+            if (type === 'requirement') {
+                node = new Requirement(id, name, description);
+            } else if (type === 'test') {
+                node = new TestNode(id, name, description);
+            } 
+            else {
+                return;
+            }
+    
+            node.contextValue = type;
+            nodesMap.set(id, node);
+    
+            if (parentID) {
+                const parentNode = nodesMap.get(parentID);
+                if (parentNode) {
+                    parentNode.children.push(node);
+                    node.parent = parentNode;
+                    this.requirements.push(node);
+                }
+            } else {
+                rootNodes.push(node);
+                this.requirements.push(node);
+            }
+        });
+    
+        this.refresh();
     }
 
 }

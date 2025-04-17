@@ -118,6 +118,46 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	}));
 
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.exportToCSV', async () => {
+		const saveUri = await vscode.window.showSaveDialog({
+			filters: { 'CSV Files': ['csv'] },
+			defaultUri: vscode.Uri.file('requirements.csv'),
+		});
+	
+		if (!saveUri) {
+			vscode.window.showErrorMessage('Export canceled.');
+			return;
+		}
+	
+		try {
+			const csvContent = requirementDataProvider.exportToCSV();
+			await vscode.workspace.fs.writeFile(saveUri, Buffer.from(csvContent, 'utf-8'));
+			vscode.window.showInformationMessage(`Requirements exported to ${saveUri.fsPath}`);
+		} catch (error : any) {
+			vscode.window.showErrorMessage(`Failed to export requirements: ${error.message}`);
+		}
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.importFromCSV', async () => {
+		const openUri = await vscode.window.showOpenDialog({
+			filters: { 'CSV Files': ['csv'] },
+			canSelectMany: false,
+		});
+	
+		if (!openUri || openUri.length === 0) {
+			vscode.window.showErrorMessage('No file selected.');
+			return;
+		}
+	
+		try {
+			const fileContent = await vscode.workspace.fs.readFile(openUri[0]);
+			const csvContent = fileContent.toString();
+			requirementDataProvider.importFromCSV(csvContent);
+			vscode.window.showInformationMessage(`Requirements imported from ${openUri[0].fsPath}`);
+		} catch (error : any) {
+			vscode.window.showErrorMessage(`Failed to import requirements: ${error.message}`);
+		}
+	}));
 
 }
 

@@ -92,6 +92,22 @@
           "light": "media/light/edit.svg",
           "dark": "media/dark/edit.svg"
         }
+      },
+      {
+        "command": "typhoon-requirement-tool.exportToCSV",
+        "title": "Export to CSV",
+        "icon": {
+          "light": "media/light/edit.svg",
+          "dark": "media/dark/edit.svg"
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.importFromCSV",
+        "title": "Import from CSV",
+        "icon": {
+          "light": "media/light/edit.svg",
+          "dark": "media/dark/edit.svg"
+        }
       }
     ],
     "viewsContainers": {
