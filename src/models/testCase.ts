@@ -12,7 +12,7 @@ export class TestCase extends TreeNode{
         public expectedResults: string[],
         public parameters: Parameter[] = [],
     ){
-        super(id, name, vscode.TreeItemCollapsibleState.Collapsed, 'testCase');
+        super(id, name, vscode.TreeItemCollapsibleState.None, 'testCase');
         this.description = this.scenario;
         this.tooltip = this.name;
     }
