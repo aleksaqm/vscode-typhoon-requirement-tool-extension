@@ -18,7 +18,7 @@
         "title": "Add Requirement",
         "icon": {
           "light": "media/light/plus-square.svg",
-          "dark": "media/dark/plus-square.svg"	
+          "dark": "media/dark/plus-square.svg"
         }
       },
       {
@@ -26,7 +26,7 @@
         "title": "Add Test",
         "icon": {
           "light": "media/light/file-plus.svg",
-          "dark": "media/dark/file-plus.svg"	
+          "dark": "media/dark/file-plus.svg"
         }
       },
       {
@@ -34,7 +34,7 @@
         "title": "Add Test Case",
         "icon": {
           "light": "media/light/plus-circle.svg",
-          "dark": "media/dark/plus-circle.svg"	
+          "dark": "media/dark/plus-circle.svg"
         }
       },
       {
@@ -42,7 +42,7 @@
         "title": "Edit Requirement",
         "icon": {
           "light": "media/light/edit.svg",
-          "dark": "media/dark/edit.svg"	
+          "dark": "media/dark/edit.svg"
         }
       },
       {
@@ -50,7 +50,7 @@
         "title": "Edit Test",
         "icon": {
           "light": "media/light/edit.svg",
-          "dark": "media/dark/edit.svg"	
+          "dark": "media/dark/edit.svg"
         }
       },
       {
@@ -58,7 +58,7 @@
         "title": "Edit Test Case",
         "icon": {
           "light": "media/light/edit.svg",
-          "dark": "media/dark/edit.svg"	
+          "dark": "media/dark/edit.svg"
         }
       },
       {
@@ -66,7 +66,7 @@
         "title": "Delete Node",
         "icon": {
           "light": "media/light/trash.svg",
-          "dark": "media/dark/trash.svg"	
+          "dark": "media/dark/trash.svg"
         }
       },
       {
@@ -74,7 +74,39 @@
         "title": "Select Node",
         "icon": {
           "light": "media/light/edit.svg",
-          "dark": "media/dark/edit.svg"	
+          "dark": "media/dark/edit.svg"
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.exportToReqIF",
+        "title": "Export to ReqIF",
+        "icon": {
+          "light": "media/light/edit.svg",
+          "dark": "media/dark/edit.svg"
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.importFromReqIF",
+        "title": "Import from ReqIF",
+        "icon": {
+          "light": "media/light/edit.svg",
+          "dark": "media/dark/edit.svg"
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.exportToCSV",
+        "title": "Export to CSV",
+        "icon": {
+          "light": "media/light/edit.svg",
+          "dark": "media/dark/edit.svg"
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.importFromCSV",
+        "title": "Import from CSV",
+        "icon": {
+          "light": "media/light/edit.svg",
+          "dark": "media/dark/edit.svg"
         }
       }
     ],
@@ -144,8 +176,23 @@
           "command": "typhoon-requirement-tool.addRequirement",
           "when": "view == typhoon-requirement-tool.tree",
           "group": "navigation"
+        },
+        {
+          "command": "typhoon-requirement-tool.importFromReqIF",
+          "when": "view == typhoon-requirement-tool.tree"
+        },
+        {
+          "command": "typhoon-requirement-tool.importFromCSV",
+          "when": "view == typhoon-requirement-tool.tree"
+        },
+        {
+          "command": "typhoon-requirement-tool.exportToReqIF",
+          "when": "view == typhoon-requirement-tool.tree && typhoon-requirement-tool.hasRequirements"
+        },
+        {
+            "command": "typhoon-requirement-tool.exportToCSV",
+            "when": "view == typhoon-requirement-tool.tree && typhoon-requirement-tool.hasRequirements"
         }
-        
       ],
       "commandPalette": [
         {
@@ -177,11 +224,16 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
     "@types/vscode": "^1.99.1",
+    "@types/xml2js": "^0.4.14",
     "@typescript-eslint/eslint-plugin": "^8.28.0",
     "@typescript-eslint/parser": "^8.28.0",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
     "eslint": "^9.23.0",
     "typescript": "^5.8.2"
+  },
+  "dependencies": {
+    "xml2js": "^0.6.2",
+    "xmlbuilder": "^15.1.1"
   }
 }

@@ -20,10 +20,15 @@ export class DetailsViewProvider implements vscode.WebviewViewProvider {
         webviewView.webview.html = this.getHtmlContent();
     }
 
-    updateDetails(node: TreeNode): void {
+    updateDetails(node: TreeNode | null): void {
         if (this._view) {
-            this._view.webview.postMessage({ command: 'update', data: this.getNodeDetails(node) });
+            if (!node){
+                this._view.webview.postMessage({ command: 'update', data: this.getHtmlContent() });	
+            }else{
+                this._view.webview.postMessage({ command: 'update', data: this.getNodeDetails(node) });
+            }
         }
+
     }
 
     private getNodeDetails(node: TreeNode): string {
@@ -32,6 +37,7 @@ export class DetailsViewProvider implements vscode.WebviewViewProvider {
                 <h2>Requirement Details</h2>
                 <p><strong>Name:</strong> ${node.label}</p>
                 <p><strong>Description:</strong> ${node.description}</p>
+                <p><strong>Priority:</strong> ${node.priority}</p>
             `;
         } else if (node instanceof TestNode) {
             return `

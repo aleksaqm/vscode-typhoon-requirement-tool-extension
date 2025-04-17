@@ -1,16 +1,19 @@
 import * as vscode from 'vscode';
 
-export abstract class TreeNode extends vscode.TreeItem {
+export class TreeNode extends vscode.TreeItem {
     public children: TreeNode[] = [];
     public parent: TreeNode | null = null;
 
     constructor(
+        public id : string,
         public label: string,
         public readonly collapsibleState: vscode.TreeItemCollapsibleState,
-        public readonly contextValue: string
+        public contextValue: string
     ) {
         super(label, collapsibleState);
     }
 
-    abstract canHaveChildren(): boolean;
+    canHaveChildren(): boolean{
+        return true;
+    }
 }

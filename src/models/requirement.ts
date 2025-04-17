@@ -5,11 +5,13 @@ export class Requirement extends TreeNode{
     constructor(
         public readonly id: string,
         public readonly name: string,
-        public readonly description: string,
+        public description: string,
+        public priority: "High" | "Medium" | "Low" = "Medium"	
     ){
-        super(name, vscode.TreeItemCollapsibleState.Collapsed, 'requirement');
+        super(id, name, vscode.TreeItemCollapsibleState.Collapsed, 'requirement');
         this.tooltip = `${this.name} - ${this.description}`;
         this.description = this.description || 'No description available';
+        this.priority = this.priority;
     }
 
     canHaveChildren(): boolean {

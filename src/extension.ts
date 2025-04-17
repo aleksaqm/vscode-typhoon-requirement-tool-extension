@@ -76,6 +76,89 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.exportToReqIF', async () => {
+		const saveUri = await vscode.window.showSaveDialog({
+			filters: { 'ReqIF Files': ['reqif'] },
+			defaultUri: vscode.Uri.file('requirements'),
+		});
+
+		if (!saveUri) {
+			vscode.window.showErrorMessage('Export cancelled. No file selected.');
+			return;
+		}
+
+		try{
+			const reqifContent = requirementDataProvider.exportToReqIF();
+			await vscode.workspace.fs.writeFile(saveUri, Buffer.from(reqifContent, 'utf-8'));
+			vscode.window.showInformationMessage('Requirements exported to ReqIF file successfully!');
+		}catch (error : any) {
+			vscode.window.showErrorMessage('Error exporting requirements to ReqIF: ' + error.message);
+		}
+
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.importFromReqIF', async () => {
+		const openUri = await vscode.window.showOpenDialog({
+			filters: { 'ReqIF Files': ['reqif'] },
+			canSelectMany: false,
+		});
+
+		if (!openUri || openUri.length === 0) {
+			vscode.window.showErrorMessage('Import cancelled. No file selected.');
+			return;
+		}
+
+		try{
+			const fileContent = await vscode.workspace.fs.readFile(openUri[0]);
+			const reqifContent = fileContent.toString();
+			requirementDataProvider.importFromReqIF(reqifContent);
+			vscode.window.showInformationMessage(`Requirements imported from ${openUri[0].fsPath}`);
+		}catch (error : any) {
+			vscode.window.showErrorMessage('Error importing requirements from ReqIF: ' + error.message);
+		}
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.exportToCSV', async () => {
+		const saveUri = await vscode.window.showSaveDialog({
+			filters: { 'CSV Files': ['csv'] },
+			defaultUri: vscode.Uri.file('requirements.csv'),
+		});
+	
+		if (!saveUri) {
+			vscode.window.showErrorMessage('Export canceled.');
+			return;
+		}
+	
+		try {
+			const csvContent = requirementDataProvider.exportToCSV();
+			await vscode.workspace.fs.writeFile(saveUri, Buffer.from(csvContent, 'utf-8'));
+			vscode.window.showInformationMessage(`Requirements exported to ${saveUri.fsPath}`);
+		} catch (error : any) {
+			vscode.window.showErrorMessage(`Failed to export requirements: ${error.message}`);
+		}
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.importFromCSV', async () => {
+		const openUri = await vscode.window.showOpenDialog({
+			filters: { 'CSV Files': ['csv'] },
+			canSelectMany: false,
+		});
+	
+		if (!openUri || openUri.length === 0) {
+			vscode.window.showErrorMessage('No file selected.');
+			return;
+		}
+	
+		try {
+			const fileContent = await vscode.workspace.fs.readFile(openUri[0]);
+			const csvContent = fileContent.toString();
+			requirementDataProvider.importFromCSV(csvContent);
+			vscode.window.showInformationMessage(`Requirements imported from ${openUri[0].fsPath}`);
+		} catch (error : any) {
+			vscode.window.showErrorMessage(`Failed to import requirements: ${error.message}`);
+		}
+	}));
+
 }
 
 export function deactivate() {}

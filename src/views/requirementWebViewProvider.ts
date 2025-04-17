@@ -14,14 +14,14 @@ export class RequirementWebviewProvider {
 
         panel.webview.onDidReceiveMessage((message) => {
             if (message.command === 'submit') {
-                const { name, description } = message.data;
-                if (name && description) {
+                const { name, description, priority } = message.data;
+                if (name && description && priority) {
                     if (node){
                         const id = node.id!;
-                        onSubmit(new Requirement(id, name, description));
+                        onSubmit(new Requirement(id, name, description, priority));
                         panel.dispose();
                     }else{
-                        const newRequirement = new Requirement(getUniqueId(), name, description);
+                        const newRequirement = new Requirement(getUniqueId(), name, description, priority);
                         onSubmit(newRequirement);
                         panel.dispose();
                     }
@@ -35,6 +35,8 @@ export class RequirementWebviewProvider {
     private static getHtml(node: Requirement | undefined): string {
         const name = node ? node.label : '';
         const description = node && node.description ? node.description : '';
+        const priority = node ? node.priority : 'Medium'; // Default to 'Medium' if no priority is set
+    
         return `
             <!DOCTYPE html>
             <html lang="en">
@@ -51,7 +53,7 @@ export class RequirementWebviewProvider {
                         display: block;
                         margin-top: 10px;
                     }
-                    input, textarea {
+                    input, textarea, select {
                         width: 50%;
                         padding: 8px;
                         margin-top: 5px;
@@ -60,7 +62,7 @@ export class RequirementWebviewProvider {
                         border-radius: 4px;
                     }
                     button {
-                        background-color:rgb(204, 78, 0);
+                        background-color: rgb(204, 78, 0);
                         display: block;
                         color: white;
                         border: none;
@@ -69,7 +71,7 @@ export class RequirementWebviewProvider {
                         cursor: pointer;
                     }
                     button:hover {
-                        background-color:rgb(153, 74, 0);
+                        background-color: rgb(153, 74, 0);
                     }
                 </style>
             </head>
@@ -82,6 +84,13 @@ export class RequirementWebviewProvider {
                     <label for="description">Requirement Description:</label>
                     <textarea id="description" name="description" rows="4" required>${description}</textarea>
     
+                    <label for="priority">Priority:</label>
+                    <select id="priority" name="priority" required>
+                        <option value="High" ${priority === 'High' ? 'selected' : ''}>High</option>
+                        <option value="Medium" ${priority === 'Medium' ? 'selected' : ''}>Medium</option>
+                        <option value="Low" ${priority === 'Low' ? 'selected' : ''}>Low</option>
+                    </select>
+    
                     <button type="button" id="submitButton">${node ? 'Save Changes' : 'Submit'}</button>
                 </form>
     
@@ -90,9 +99,10 @@ export class RequirementWebviewProvider {
                     document.getElementById('submitButton').addEventListener('click', () => {
                         const name = document.getElementById('name').value;
                         const description = document.getElementById('description').value;
+                        const priority = document.getElementById('priority').value;
                         vscode.postMessage({
                             command: 'submit',
-                            data: { name, description }
+                            data: { name, description, priority }
                         });
                     });
                 </script>
