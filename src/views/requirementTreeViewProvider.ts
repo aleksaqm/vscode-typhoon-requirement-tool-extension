@@ -125,6 +125,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
                 req.label = requirement.name;
                 req.description = requirement.description;
                 req.priority = requirement.priority;
+                req.status = requirement.status;
             }
             this.refresh();
             this.onNodeSelected(req!);
@@ -186,6 +187,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
                 specObject.ele('NAME', node.label);
                 specObject.ele('DESCRIPTION', node.description || '');
                 specObject.ele('PRIORITY', node.priority);
+                specObject.ele('STATUS', node.status);
                 specObject.ele('TYPE', node.contextValue);
                 // specObject.ele('TYPE', node.type);
 
@@ -294,11 +296,11 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
 
     exportToCSV(): string {
         const rows: string[] = [];
-        rows.push('ID,Name,Description,Priority,Type,ParentID');
+        rows.push('ID,Name,Description,Priority,Status,Type,ParentID');
     
         const serializeNode = (node: TreeNode, parentID: string | null) => {
             if (node instanceof Requirement){
-                rows.push(`${node.id},${node.label},${node.description || ''},${node.priority},${node.contextValue},${parentID || ''}`);
+                rows.push(`${node.id},${node.label},${node.description || ''},${node.priority}, ${node.status},${node.contextValue},${parentID || ''}`);
                 if (node.children && node.children.length > 0) {
                     node.children.forEach(child => serializeNode(child, node.id));
                 }
@@ -329,11 +331,11 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         const rootNodes: TreeNode[] = [];
         this.requirements = [];
         rows.forEach(row => {
-            const [id, name, description,priority, type, parentID] = row.split(',');
+            const [id, name, description,priority, status, type, parentID] = row.split(',');
     
             let node: TreeNode;
             if (type === 'requirement') {
-                node = new Requirement(id, name, description, priority as "High" | "Medium" | "Low");
+                node = new Requirement(id, name, description, priority as "High" | "Medium" | "Low", status as "Draft" | "Ready" | "Reviewed" | "Approved" | "Released");
             } 
             else if (type === 'test') {
                 node = new TestNode(id, name, description);
@@ -359,6 +361,119 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         });
     
         this.refresh();
+    }
+
+    exportToReqViewCSV(): string {
+        const rows: string[] = [];
+        rows.push('ID,level,heading,text,priority,status,type,parentID');
+    
+        const serializeNode = (node: TreeNode, parentID: string | null, level=1) => {
+            if (node instanceof Requirement){
+                rows.push(`${node.id},${level},${node.label},${node.description || ""},${node.priority},${node.status},SEC,${parentID || ""}`);   //SEC stands for SECTION in reqView
+                if (node.children && node.children.length > 0) {
+                    node.children.forEach(child => serializeNode(child, node.id, level+1));
+                }
+            }
+            else if (node instanceof TestNode){
+                rows.push(`${node.id},${level},${node.label},${node.description || ""},"","",FR,${parentID || ""}`);
+                // if (node.children && node.children.length > 0) {
+                //     node.children.forEach(child => serializeNode(child, node.id));
+                // }
+            }
+        };
+    
+        const rootNodes = this.requirements.filter(node => !node.parent);
+        rootNodes.forEach(node => serializeNode(node, null));
+    
+        return rows.join('\n');
+    }
+
+    importFromReqViewCSV(csvContent: string): void {
+        const rows = csvContent.split('\n').map(row => row.trim()).filter(row => row.length > 0);
+        const header = rows.shift();
+        if (!header) {
+            vscode.window.showErrorMessage('Invalid CSV format: Missing header.');
+            return;
+        }
+    
+        var headers = header.split(';').map(h => this.cleanQuotes(h.trim().toLowerCase()));
+        var delimiter = ';';	
+        if (headers.length < 2){
+            headers = header.split(',').map(h => h.trim().toLowerCase());
+            delimiter = ',';
+        }
+        const idIndex = headers.indexOf("id");
+        const levelIndex = headers.indexOf("level");
+        const headingIndex = headers.indexOf("heading");
+        const textIndex = headers.indexOf("text");
+        const priorityIndex = headers.indexOf("priority");
+        const statusIndex = headers.indexOf("status");
+        const typeIndex = headers.indexOf("type");
+    
+        if (idIndex === -1 || levelIndex === -1 || headingIndex === -1 || textIndex === -1 || typeIndex === -1) {
+            vscode.window.showErrorMessage('Invalid CSV format: Missing required fields.');
+            return;
+        }
+    
+        const nodesMap: Map<string, TreeNode> = new Map();
+        const rootNodes: TreeNode[] = [];
+        this.requirements = [];
+    
+        const stack: { level: number; node: TreeNode }[] = [];
+    
+        rows.forEach(row => {
+            const columns = row.split(delimiter).map(col => this.cleanQuotes(col.trim()));
+            const id = columns[idIndex];
+            const level = columns[levelIndex];
+            const name = columns[headingIndex];
+            const description = columns[textIndex];
+            const priority = priorityIndex !== -1 ? columns[priorityIndex] : 'Medium';
+            const status = statusIndex !== -1 ? columns[statusIndex] : 'Draft';
+            const type = columns[typeIndex];
+    
+            const parsedLevel = parseInt(level.replace(/"/g, ''));
+    
+            let node: TreeNode;
+            if (type === 'SEC') {
+                node = new Requirement(
+                    id,
+                    name,
+                    description,
+                    priority as "High" | "Medium" | "Low",
+                    status as "Draft" | "Ready" | "Reviewed" | "Approved" | "Released"
+                );
+            } else if (type === 'FR') {
+                node = new TestNode(id, name, description);
+            } else {
+                return;
+            }
+    
+            nodesMap.set(id, node);
+    
+            while (stack.length > 0 && stack[stack.length - 1].level >= parsedLevel) {
+                stack.pop();
+            }
+    
+            if (stack.length > 0) {
+                const parent = stack[stack.length - 1].node;
+                parent.children.push(node);
+                node.parent = parent;
+            } else {
+                rootNodes.push(node);
+            }
+            this.requirements.push(node);
+            stack.push({ level: parsedLevel, node });
+        });
+    
+        // this.requirements = rootNodes;
+        this.refresh();
+    }
+
+    cleanQuotes(value: string): string {
+        if (value.startsWith('"') && value.endsWith('"') && value !== '""') {
+            return value.slice(1, -1);
+        }
+        return value;
     }
 
 }

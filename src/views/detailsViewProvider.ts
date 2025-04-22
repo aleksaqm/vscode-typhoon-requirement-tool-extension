@@ -38,6 +38,7 @@ export class DetailsViewProvider implements vscode.WebviewViewProvider {
                 <p><strong>Name:</strong> ${node.label}</p>
                 <p><strong>Description:</strong> ${node.description}</p>
                 <p><strong>Priority:</strong> ${node.priority}</p>
+                <p><strong>Status:</strong> ${node.status}</p>
             `;
         } else if (node instanceof TestNode) {
             return `
