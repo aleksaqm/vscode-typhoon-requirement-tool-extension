@@ -130,7 +130,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	
 		try {
-			const csvContent = requirementDataProvider.exportToCSV();
+			const csvContent = requirementDataProvider.exportToReqViewCSV();
 			await vscode.workspace.fs.writeFile(saveUri, Buffer.from(csvContent, 'utf-8'));
 			vscode.window.showInformationMessage(`Requirements exported to ${saveUri.fsPath}`);
 		} catch (error : any) {
@@ -152,7 +152,7 @@ export function activate(context: vscode.ExtensionContext) {
 		try {
 			const fileContent = await vscode.workspace.fs.readFile(openUri[0]);
 			const csvContent = fileContent.toString();
-			requirementDataProvider.importFromCSV(csvContent);
+			requirementDataProvider.importFromReqViewCSV(csvContent);
 			vscode.window.showInformationMessage(`Requirements imported from ${openUri[0].fsPath}`);
 		} catch (error : any) {
 			vscode.window.showErrorMessage(`Failed to import requirements: ${error.message}`);
