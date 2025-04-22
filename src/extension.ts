@@ -237,17 +237,17 @@ function getTabularViewHtml(requirements: TreeNode[]): string {
                 const tree = ${treeJson};
 
                 function renderRow(node, parentId = null) {
-                    const hasChildren = node.children && node.children.length > 0;
-                    return \`
-                        <tr data-id="\${node.id}" data-parent-id="\${parentId}" class="\${parentId ? 'hidden' : ''}">
-                            <td>\${hasChildren ? '<span class="expandable">[+]</span>' : ''} \${node.id}</td>
-                            <td>\${node.label}</td>
-                            <td>\${node.description || ''}</td>
-                            <td>\${node.priority || ''}</td>
-                            <td>\${node.status || ''}</td>
-                        </tr>
-                    \`;
-                }
+					const hasChildren = node.children && node.children.length > 0;
+					return \`
+						<tr data-id="\${node.id}" data-parent-id="\${parentId}" class="\${parentId ? 'hidden' : ''}">
+							<td>\${hasChildren ? '<span class="expandable" data-loaded="false">[+]</span>' : ''} \${node.id}</td>
+							<td>\${node.label}</td>
+							<td>\${node.description || ''}</td>
+							<td>\${node.priority || ''}</td>
+							<td>\${node.status || ''}</td>
+						</tr>
+					\`;
+				}
 
                 function renderRows(nodes, parentId = null) {
                     return nodes.map(node => renderRow(node, parentId)).join('');
@@ -265,26 +265,39 @@ function getTabularViewHtml(requirements: TreeNode[]): string {
                 document.getElementById('requirementsTable').innerHTML = renderRows(tree);
 
                 document.addEventListener('click', (event) => {
-                    if (event.target.classList.contains('expandable')) {
-                        const row = event.target.closest('tr');
-                        const id = row.getAttribute('data-id');
-                        const isExpanded = event.target.textContent === '[-]';
+					if (event.target.classList.contains('expandable')) {
+						const expander = event.target;
+						const row = expander.closest('tr');
+						const id = row.getAttribute('data-id');
+						const isExpanded = expander.textContent === '[-]';
+						const alreadyLoaded = expander.getAttribute('data-loaded') === 'true';
 
-                        event.target.textContent = isExpanded ? '[+]' : '[-]';
+						if (isExpanded) {
+							// Collapse: Hide all direct children
+							expander.textContent = '[+]';
+							document.querySelectorAll(\`tr[data-parent-id="\${id}"]\`).forEach(childRow => {
+								childRow.classList.add('hidden');
+							});
+						} else {
+							expander.textContent = '[-]';
 
-                        if (isExpanded) {
-                            // Collapse: Hide all child rows
-                            document.querySelectorAll(\`tr[data-parent-id="\${id}"]\`).forEach(childRow => {
-                                childRow.classList.add('hidden');
-                            });
-                        } else {
-                            // Expand: Show all child rows
-                            document.querySelectorAll(\`tr[data-parent-id="\${id}"]\`).forEach(childRow => {
-                                childRow.classList.remove('hidden');
-                            });
-                        }
-                    }
-                });
+							if (!alreadyLoaded) {
+								// First time expanding: insert child rows
+								const node = findNodeById(tree, id);
+								if (node && node.children.length > 0) {
+									const childRowsHtml = renderRows(node.children, id);
+									row.insertAdjacentHTML('afterend', childRowsHtml);
+									expander.setAttribute('data-loaded', 'true');
+								}
+							} else {
+								// Show already-rendered child rows
+								document.querySelectorAll(\`tr[data-parent-id="\${id}"]\`).forEach(childRow => {
+									childRow.classList.remove('hidden');
+								});
+							}
+						}
+					}
+				});
 
                 function findNodeById(nodes, id) {
                     for (const node of nodes) {

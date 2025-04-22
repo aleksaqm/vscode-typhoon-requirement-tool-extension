@@ -37,7 +37,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
     }
 
     getRootNodes(): TreeNode[] {
-        return this.requirements;//.filter(node => !node.parent);
+        return this.requirements.filter(node => !node.parent);
     }
 
     updateExportContext(): void {
