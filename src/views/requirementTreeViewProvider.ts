@@ -125,6 +125,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
                 req.label = requirement.name;
                 req.description = requirement.description;
                 req.priority = requirement.priority;
+                req.status = requirement.status;
             }
             this.refresh();
             this.onNodeSelected(req!);
@@ -186,6 +187,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
                 specObject.ele('NAME', node.label);
                 specObject.ele('DESCRIPTION', node.description || '');
                 specObject.ele('PRIORITY', node.priority);
+                specObject.ele('STATUS', node.status);
                 specObject.ele('TYPE', node.contextValue);
                 // specObject.ele('TYPE', node.type);
 
@@ -294,11 +296,11 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
 
     exportToCSV(): string {
         const rows: string[] = [];
-        rows.push('ID,Name,Description,Priority,Type,ParentID');
+        rows.push('ID,Name,Description,Priority,Status,Type,ParentID');
     
         const serializeNode = (node: TreeNode, parentID: string | null) => {
             if (node instanceof Requirement){
-                rows.push(`${node.id},${node.label},${node.description || ''},${node.priority},${node.contextValue},${parentID || ''}`);
+                rows.push(`${node.id},${node.label},${node.description || ''},${node.priority}, ${node.status},${node.contextValue},${parentID || ''}`);
                 if (node.children && node.children.length > 0) {
                     node.children.forEach(child => serializeNode(child, node.id));
                 }
@@ -329,11 +331,11 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         const rootNodes: TreeNode[] = [];
         this.requirements = [];
         rows.forEach(row => {
-            const [id, name, description,priority, type, parentID] = row.split(',');
+            const [id, name, description,priority, status, type, parentID] = row.split(',');
     
             let node: TreeNode;
             if (type === 'requirement') {
-                node = new Requirement(id, name, description, priority as "High" | "Medium" | "Low");
+                node = new Requirement(id, name, description, priority as "High" | "Medium" | "Low", status as "Draft" | "Ready" | "Reviewed" | "Approved" | "Released");
             } 
             else if (type === 'test') {
                 node = new TestNode(id, name, description);
@@ -360,5 +362,30 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
     
         this.refresh();
     }
+
+    // exportToReqViewCSV(): string {
+    //     const rows: string[] = [];
+    //     rows.push('ID,level,heading,text,Priority,Type,ParentID');
+    
+    //     const serializeNode = (node: TreeNode, parentID: string | null) => {
+    //         if (node instanceof Requirement){
+    //             rows.push(`${node.id},${node.label},${node.description || ''},${node.priority},${node.contextValue},${parentID || ''}`);
+    //             if (node.children && node.children.length > 0) {
+    //                 node.children.forEach(child => serializeNode(child, node.id));
+    //             }
+    //         }
+    //         else if (node instanceof TestNode){
+    //             rows.push(`${node.id},${node.label},${node.description || ''},'',${node.contextValue},${parentID || ''}`);
+    //             // if (node.children && node.children.length > 0) {
+    //             //     node.children.forEach(child => serializeNode(child, node.id));
+    //             // }
+    //         }
+    //     };
+    
+    //     const rootNodes = this.requirements.filter(node => !node.parent);
+    //     rootNodes.forEach(node => serializeNode(node, null));
+    
+    //     return rows.join('\n');
+    // }
 
 }

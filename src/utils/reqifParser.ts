@@ -8,6 +8,7 @@ export function parseRequirement(spec: any) : Requirement{
         spec['NAME'],
         spec['DESCRIPTION'] || '',
         spec['PRIORITY'] || 'Medium',
+        spec['STATUS'] || 'Draft',
     );
 }
 

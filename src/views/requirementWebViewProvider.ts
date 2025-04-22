@@ -14,14 +14,14 @@ export class RequirementWebviewProvider {
 
         panel.webview.onDidReceiveMessage((message) => {
             if (message.command === 'submit') {
-                const { name, description, priority } = message.data;
-                if (name && description && priority) {
+                const { name, description, priority, status } = message.data;
+                if (name && description && priority && status) {
                     if (node){
                         const id = node.id!;
-                        onSubmit(new Requirement(id, name, description, priority));
+                        onSubmit(new Requirement(id, name, description, priority, status));
                         panel.dispose();
                     }else{
-                        const newRequirement = new Requirement(getUniqueId(), name, description, priority);
+                        const newRequirement = new Requirement(getUniqueId(), name, description, priority, status);
                         onSubmit(newRequirement);
                         panel.dispose();
                     }
@@ -35,7 +35,8 @@ export class RequirementWebviewProvider {
     private static getHtml(node: Requirement | undefined): string {
         const name = node ? node.label : '';
         const description = node && node.description ? node.description : '';
-        const priority = node ? node.priority : 'Medium'; // Default to 'Medium' if no priority is set
+        const priority = node ? node.priority : 'Medium';
+        const status = node ? node.status : 'Draft';
     
         return `
             <!DOCTYPE html>
@@ -91,6 +92,15 @@ export class RequirementWebviewProvider {
                         <option value="Low" ${priority === 'Low' ? 'selected' : ''}>Low</option>
                     </select>
     
+                    <label for="status">Status:</label>
+                    <select id="status" name="status" required>
+                        <option value="Draft" ${status === 'Draft' ? 'selected' : ''}>Draft</option>
+                        <option value="Ready" ${status === 'Ready' ? 'selected' : ''}>Ready</option>
+                        <option value="Reviewed" ${status === 'Reviewed' ? 'selected' : ''}>Reviewed</option>
+                        <option value="Approved" ${status === 'Approved' ? 'selected' : ''}>Approved</option>
+                        <option value="Released" ${status === 'Released' ? 'selected' : ''}>Released</option>
+                    </select>
+    
                     <button type="button" id="submitButton">${node ? 'Save Changes' : 'Submit'}</button>
                 </form>
     
@@ -100,9 +110,10 @@ export class RequirementWebviewProvider {
                         const name = document.getElementById('name').value;
                         const description = document.getElementById('description').value;
                         const priority = document.getElementById('priority').value;
+                        const status = document.getElementById('status').value;
                         vscode.postMessage({
                             command: 'submit',
-                            data: { name, description, priority }
+                            data: { name, description, priority, status }
                         });
                     });
                 </script>
