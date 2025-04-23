@@ -5,6 +5,7 @@ import { TreeNode } from './models/treeNode';
 import { TestNode } from './models/test';
 import { TestCase } from './models/testCase';
 import { DetailsViewProvider } from './views/detailsViewProvider';
+import { TabularViewProvider } from './views/tabularViewProvider';
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -159,164 +160,14 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	}));
 
-	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.openTabularView', () => {
-		const panel = vscode.window.createWebviewPanel(
-			'tabularView',
-			'Requirements Tabular View',
-			vscode.ViewColumn.One,
-			{ enableScripts: true }
-		);
-	
-		const rootRequirements = requirementDataProvider.getRootNodes();
-		console.log('Root Requirements:', rootRequirements);
 
-		const serializedRequirements = serializeTree(rootRequirements);
-		console.log('Serialized Requirements:', serializedRequirements);
-    	panel.webview.html = getTabularViewHtml(serializedRequirements);
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.openTabularView', () => {
+		TabularViewProvider.show(requirementDataProvider);
 	}));
 
 }
 
 export function deactivate() {}
 
-function serializeTree(nodes: TreeNode[]): any[] {
-    return nodes.map(node => {
-        const { parent, ...rest } = node;
-        return {
-            ...rest,
-            children: node.children ? serializeTree(node.children) : [],
-        };
-    });
-}
-
-function getTabularViewHtml(requirements: TreeNode[]): string {
-    const treeJson = JSON.stringify(requirements);
-
-    return `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Requirements Tabular View</title>
-            <style>
-                table {
-                    width: 100%;
-                    border-collapse: collapse;
-                }
-                th, td {
-                    border: 1px solid #ccc;
-                    padding: 8px;
-                    text-align: left;
-                }
-                .expandable {
-                    cursor: pointer;
-                }
-                .hidden {
-                    display: none;
-                }
-            </style>
-        </head>
-        <body>
-            <h1>Requirements Tabular View</h1>
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>Description</th>
-                        <th>Priority</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody id="requirementsTable">
-                    <!-- Root rows will be dynamically generated -->
-                </tbody>
-            </table>
-            <script>
-                const tree = ${treeJson};
-
-                function renderRow(node, parentId = null) {
-					const hasChildren = node.children && node.children.length > 0;
-					return \`
-						<tr data-id="\${node.id}" data-parent-id="\${parentId}" class="\${parentId ? 'hidden' : ''}">
-							<td>\${hasChildren ? '<span class="expandable" data-loaded="false">[+]</span>' : ''} \${node.id}</td>
-							<td>\${node.label}</td>
-							<td>\${node.description || ''}</td>
-							<td>\${node.priority || ''}</td>
-							<td>\${node.status || ''}</td>
-						</tr>
-					\`;
-				}
-
-                function renderRows(nodes, parentId = null) {
-                    return nodes.map(node => renderRow(node, parentId)).join('');
-                }
-
-                function loadChildren(nodeId, children) {
-                    const tableBody = document.getElementById('requirementsTable');
-                    const parentRow = document.querySelector(\`tr[data-id="\${nodeId}"]\`);
-
-                    // Insert child rows after the parent row
-                    const childRowsHtml = renderRows(children, nodeId);
-                    parentRow.insertAdjacentHTML('afterend', childRowsHtml);
-                }
-
-                document.getElementById('requirementsTable').innerHTML = renderRows(tree);
-
-                document.addEventListener('click', (event) => {
-					if (event.target.classList.contains('expandable')) {
-						const expander = event.target;
-						const row = expander.closest('tr');
-						const id = row.getAttribute('data-id');
-						const isExpanded = expander.textContent === '[-]';
-						const alreadyLoaded = expander.getAttribute('data-loaded') === 'true';
-
-						if (isExpanded) {
-							// Collapse: Hide all direct children
-							expander.textContent = '[+]';
-							document.querySelectorAll(\`tr[data-parent-id="\${id}"]\`).forEach(childRow => {
-								childRow.classList.add('hidden');
-							});
-						} else {
-							expander.textContent = '[-]';
-
-							if (!alreadyLoaded) {
-								// First time expanding: insert child rows
-								const node = findNodeById(tree, id);
-								if (node && node.children.length > 0) {
-									const childRowsHtml = renderRows(node.children, id);
-									row.insertAdjacentHTML('afterend', childRowsHtml);
-									expander.setAttribute('data-loaded', 'true');
-								}
-							} else {
-								// Show already-rendered child rows
-								document.querySelectorAll(\`tr[data-parent-id="\${id}"]\`).forEach(childRow => {
-									childRow.classList.remove('hidden');
-								});
-							}
-						}
-					}
-				});
-
-                function findNodeById(nodes, id) {
-                    for (const node of nodes) {
-                        if (node.id === id) {
-                            return node;
-                        }
-                        if (node.children) {
-                            const found = findNodeById(node.children, id);
-                            if (found) {
-                                return found;
-                            }
-                        }
-                    }
-                    return null;
-                }
-            </script>
-        </body>
-        </html>
-    `;
-}
 
 
