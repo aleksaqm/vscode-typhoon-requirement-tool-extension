@@ -6,6 +6,7 @@ import { TestNode } from './models/test';
 import { TestCase } from './models/testCase';
 import { DetailsViewProvider } from './views/detailsViewProvider';
 import { TabularViewProvider } from './views/tabularViewProvider';
+import { ReqifFileManager } from './utils/reqifFileManager';
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -87,9 +88,8 @@ export function activate(context: vscode.ExtensionContext) {
 			vscode.window.showErrorMessage('Export cancelled. No file selected.');
 			return;
 		}
-
 		try{
-			const reqifContent = requirementDataProvider.exportToReqIF();
+			const reqifContent = ReqifFileManager.exportToReqIF(requirementDataProvider.getAllNodes());
 			await vscode.workspace.fs.writeFile(saveUri, Buffer.from(reqifContent, 'utf-8'));
 			vscode.window.showInformationMessage('Requirements exported to ReqIF file successfully!');
 		}catch (error : any) {
