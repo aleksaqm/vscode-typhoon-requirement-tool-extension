@@ -5,6 +5,7 @@ import { TreeNode } from './models/treeNode';
 import { TestNode } from './models/test';
 import { TestCase } from './models/testCase';
 import { DetailsViewProvider } from './views/detailsViewProvider';
+import { TabularViewProvider } from './views/tabularViewProvider';
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -159,6 +160,14 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	}));
 
+
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.openTabularView', () => {
+		TabularViewProvider.show(requirementDataProvider);
+	}));
+
 }
 
 export function deactivate() {}
+
+
+

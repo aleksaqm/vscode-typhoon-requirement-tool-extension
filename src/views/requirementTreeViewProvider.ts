@@ -36,6 +36,10 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         }
     }
 
+    getRootNodes(): TreeNode[] {
+        return this.requirements.filter(node => !node.parent);
+    }
+
     updateExportContext(): void {
         const hasRequirements = this.requirements.length > 0;
         vscode.commands.executeCommand('setContext', 'typhoon-requirement-tool.hasRequirements', hasRequirements);
