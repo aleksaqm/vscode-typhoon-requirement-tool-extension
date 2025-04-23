@@ -49,7 +49,7 @@ export class TabularViewProvider {
 
     private static getHtml(requirements: TreeNode[]): string {
         const treeJson = JSON.stringify(requirements);
-
+    
         return `
             <!DOCTYPE html>
             <html lang="en">
@@ -80,11 +80,15 @@ export class TabularViewProvider {
                 <table>
                     <thead>
                         <tr>
-                            <th>ID</th>
                             <th>Name</th>
                             <th>Description</th>
                             <th>Priority</th>
                             <th>Status</th>
+                            <th>Steps</th>
+                            <th>Prerequisites</th>
+                            <th>Test Data</th>
+                            <th>Expected Results</th>
+                            <th>Parameters</th>
                         </tr>
                     </thead>
                     <tbody id="requirementsTable">
@@ -93,32 +97,36 @@ export class TabularViewProvider {
                 </table>
                 <script>
                     const tree = ${treeJson};
-
+    
                     function renderRow(node, parentId = null) {
                         const hasChildren = node.children && node.children.length > 0;
                         return \`
                             <tr data-id="\${node.id}" data-parent-id="\${parentId}" class="\${parentId ? 'hidden' : ''}">
-                                <td>\${hasChildren ? '<span class="expandable" data-loaded="false">[+]</span>' : ''} \${node.id}</td>
-                                <td>\${node.label}</td>
+                                <td>\${hasChildren ? '<span class="expandable" data-loaded="false">[+]</span>' : ''} \${node.label}</td>
                                 <td>\${node.description || ''}</td>
                                 <td>\${node.priority || ''}</td>
                                 <td>\${node.status || ''}</td>
+                                <td>\${node.steps || ''}</td>
+                                <td>\${node.prerequisites || ''}</td>
+                                <td>\${node.testData || ''}</td>
+                                <td>\${node.expectedResults || ''}</td>
+                                <td>\${node.parameters ? JSON.stringify(node.parameters) : ''}</td>
                             </tr>
                         \`;
                     }
-
+    
                     function renderRows(nodes, parentId = null) {
                         return nodes.map(node => renderRow(node, parentId)).join('');
                     }
-
+    
                     function loadChildren(nodeId, children) {
                         const parentRow = document.querySelector(\`tr[data-id="\${nodeId}"]\`);
                         const childRowsHtml = renderRows(children, nodeId);
                         parentRow.insertAdjacentHTML('afterend', childRowsHtml);
                     }
-
+    
                     document.getElementById('requirementsTable').innerHTML = renderRows(tree);
-
+    
                     document.addEventListener('click', (event) => {
                         if (event.target.classList.contains('expandable')) {
                             const expander = event.target;
@@ -126,7 +134,7 @@ export class TabularViewProvider {
                             const id = row.getAttribute('data-id');
                             const isExpanded = expander.textContent === '[-]';
                             const alreadyLoaded = expander.getAttribute('data-loaded') === 'true';
-
+    
                             if (isExpanded) {
                                 expander.textContent = '[+]';
                                 collapseDescendants(id);
@@ -145,7 +153,7 @@ export class TabularViewProvider {
                             }
                         }
                     });
-
+    
                     function collapseDescendants(parentId) {
                         document.querySelectorAll(\`tr[data-parent-id="\${parentId}"]\`).forEach(childRow => {
                             const childId = childRow.getAttribute('data-id');
@@ -158,7 +166,7 @@ export class TabularViewProvider {
                             collapseDescendants(childId);
                         });
                     }
-
+    
                     function findNodeById(nodes, id) {
                         for (const node of nodes) {
                             if (node.id === id) {
