@@ -8,10 +8,6 @@ import { RequirementWebviewProvider } from './requirementWebViewProvider';
 import { TestWebviewProvider } from './testWebViewProvider';
 import { TestCaseWebviewProvider } from './testCaseWebViewProvider';
 import { DetailsViewProvider } from './detailsViewProvider';
-import * as xmlbuilder from 'xmlbuilder';
-import * as xml2js from 'xml2js';
-import { parseRequirement, parseTest, parseTestCase } from '../utils/reqifParser';
-import { ReqifFileManager } from '../utils/reqifFileManager';
 
 export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode>{
     private _onDidChangeTreeData: vscode.EventEmitter<TreeNode | undefined | void> = new vscode.EventEmitter<TreeNode | undefined | void>();
