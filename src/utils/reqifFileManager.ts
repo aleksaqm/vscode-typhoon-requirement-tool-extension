@@ -2,6 +2,8 @@ import xmlbuilder from "xmlbuilder";
 import { Requirement } from "../models/requirement";
 import { TestCase } from "../models/testCase";
 import { TreeNode } from "../models/treeNode";
+import * as xml2js from "xml2js";
+import { TestNode } from "../models/test";
 
 export class ReqifFileManager{
     public static exportToReqIF(nodes: TreeNode[]): string {
@@ -37,73 +39,127 @@ export class ReqifFileManager{
             });
         
             const specTypes = coreContent.ele('SPEC-TYPES');
-            const specObjectType = specTypes.ele('SPEC-OBJECT-TYPE', {
+            const specObjectRequirementType = specTypes.ele('SPEC-OBJECT-TYPE', {
                 IDENTIFIER: '_RequirementType',
                 'LAST-CHANGE': now,
                 'LONG-NAME': 'Requirement Type',
             });
-            const specAttributes = specObjectType.ele('SPEC-ATTRIBUTES');
-            specAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
-                IDENTIFIER: '_ForeignID',
+            const specObjectTestType = specTypes.ele('SPEC-OBJECT-TYPE', {
+                IDENTIFIER: '_TestType',
                 'LAST-CHANGE': now,
-                'LONG-NAME': 'ReqIF.ForeignID',
+                'LONG-NAME': 'Test Type',
+            });
+            const specObjectTestCaseType = specTypes.ele('SPEC-OBJECT-TYPE', {
+                IDENTIFIER: '_TestCaseType',
+                'LAST-CHANGE': now,
+                'LONG-NAME': 'Test Case Type',
+            });
+            const specReqtributes = specObjectRequirementType.ele('SPEC-ATTRIBUTES');
+            const specTestAttributes = specObjectTestType.ele('SPEC-ATTRIBUTES');
+            const specTestCaseAttributes = specObjectTestCaseType.ele('SPEC-ATTRIBUTES');
+
+
+            specReqtributes.ele('ATTRIBUTE-DEFINITION-STRING', {
+                IDENTIFIER: '_Requirement_ID',
+                'LAST-CHANGE': now,
+                'LONG-NAME': 'ReqIF.ID',
+            }).ele('TYPE').ele('DATATYPE-DEFINITION-STRING-REF', '_StringType');
+            specTestAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
+                IDENTIFIER: '_Test_ID',
+                'LAST-CHANGE': now,
+                'LONG-NAME': 'ReqIF.ID',
+            }).ele('TYPE').ele('DATATYPE-DEFINITION-STRING-REF', '_StringType');
+            specTestCaseAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
+                IDENTIFIER: '_TestCase_ID',
+                'LAST-CHANGE': now,
+                'LONG-NAME': 'ReqIF.ID',
             }).ele('TYPE').ele('DATATYPE-DEFINITION-STRING-REF', '_StringType');
     
-            specAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
-                IDENTIFIER: '_Title',
+            specReqtributes.ele('ATTRIBUTE-DEFINITION-STRING', {
+                IDENTIFIER: '_Requirement_Title',
+                'LAST-CHANGE': now,
+                'LONG-NAME': 'ReqIF.Title',
+            }).ele('TYPE').ele('DATATYPE-DEFINITION-STRING-REF', '_StringType');
+            specTestAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
+                IDENTIFIER: '_Test_Title',
+                'LAST-CHANGE': now,
+                'LONG-NAME': 'ReqIF.Title',
+            }).ele('TYPE').ele('DATATYPE-DEFINITION-STRING-REF', '_StringType');
+            specTestCaseAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
+                IDENTIFIER: '_TestCase_Title',
                 'LAST-CHANGE': now,
                 'LONG-NAME': 'ReqIF.Title',
             }).ele('TYPE').ele('DATATYPE-DEFINITION-STRING-REF', '_StringType');
             
-            specAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
-                IDENTIFIER: '_Description',
+            specReqtributes.ele('ATTRIBUTE-DEFINITION-STRING', {
+                IDENTIFIER: '_Requirement_Description',
+                'LAST-CHANGE': now,
+                'LONG-NAME': 'ReqIF.Description',
+            }).ele('TYPE').ele('DATATYPE-DEFINITION-STRING-REF', '_StringType');
+            specTestAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
+                IDENTIFIER: '_Test_Description',
+                'LAST-CHANGE': now,
+                'LONG-NAME': 'ReqIF.Description',
+            }).ele('TYPE').ele('DATATYPE-DEFINITION-STRING-REF', '_StringType');
+            specTestCaseAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
+                IDENTIFIER: '_TestCase_Description',
                 'LAST-CHANGE': now,
                 'LONG-NAME': 'ReqIF.Description',
             }).ele('TYPE').ele('DATATYPE-DEFINITION-STRING-REF', '_StringType');
     
-            specAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
-                IDENTIFIER: '_Type',
+            specReqtributes.ele('ATTRIBUTE-DEFINITION-STRING', {
+                IDENTIFIER: '_Requirement_Type',
+                'LAST-CHANGE': now,
+                'LONG-NAME': 'ReqIF.Type',
+            }).ele('TYPE').ele('DATATYPE-DEFINITION-STRING-REF', '_StringType');
+            specTestAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
+                IDENTIFIER: '_Test_Type',
+                'LAST-CHANGE': now,
+                'LONG-NAME': 'ReqIF.Type',
+            }).ele('TYPE').ele('DATATYPE-DEFINITION-STRING-REF', '_StringType');
+            specTestCaseAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
+                IDENTIFIER: '_TestCase_Type',
                 'LAST-CHANGE': now,
                 'LONG-NAME': 'ReqIF.Type',
             }).ele('TYPE').ele('DATATYPE-DEFINITION-STRING-REF', '_StringType');
     
-            specAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
+            specReqtributes.ele('ATTRIBUTE-DEFINITION-STRING', {
                 IDENTIFIER: '_Priority',
                 'LAST-CHANGE': now,
                 'LONG-NAME': 'ReqIF.Priority',
             }).ele('TYPE').ele('DATATYPE-DEFINITION-STRING-REF', '_StringType');
     
-            specAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
+            specReqtributes.ele('ATTRIBUTE-DEFINITION-STRING', {
                 IDENTIFIER: '_Status',
                 'LAST-CHANGE': now,
                 'LONG-NAME': 'ReqIF.Status',
             }).ele('TYPE').ele('DATATYPE-DEFINITION-STRING-REF', '_StringType');
     
-            specAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
+            specTestCaseAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
                 IDENTIFIER: '_Steps',
                 'LAST-CHANGE': now,
                 'LONG-NAME': 'ReqIF.Steps',
             }).ele('TYPE').ele('DATATYPE-DEFINITION-STRING-REF', '_StringType');
             
-            specAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
+            specTestCaseAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
                 IDENTIFIER: '_Prerequisites',
                 'LAST-CHANGE': now,
                 'LONG-NAME': 'ReqIF.Prerequisites',
             }).ele('TYPE').ele('DATATYPE-DEFINITION-STRING-REF', '_StringType');
             
-            specAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
+            specTestCaseAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
                 IDENTIFIER: '_TestData',
                 'LAST-CHANGE': now,
                 'LONG-NAME': 'ReqIF.TestData',
             }).ele('TYPE').ele('DATATYPE-DEFINITION-STRING-REF', '_StringType');
             
-            specAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
+            specTestCaseAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
                 IDENTIFIER: '_ExpectedResults',
                 'LAST-CHANGE': now,
                 'LONG-NAME': 'ReqIF.ExpectedResults',
             }).ele('TYPE').ele('DATATYPE-DEFINITION-STRING-REF', '_StringType');
             
-            specAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
+            specTestCaseAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
                 IDENTIFIER: '_Parameters',
                 'LAST-CHANGE': now,
                 'LONG-NAME': 'ReqIF.Parameters',
@@ -129,27 +185,43 @@ export class ReqifFileManager{
                     'LAST-CHANGE': now,
                 });
                 const values = specObject.ele('VALUES');
-                values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.id })
-                    .ele('DEFINITION')
-                    .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_ForeignID');
-                values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.label || '' })
-                    .ele('DEFINITION')
-                    .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_Title');
-                values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.description || '' })
-                    .ele('DEFINITION')
-                    .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_Description');
-                values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.contextValue || '' })
-                    .ele('DEFINITION')
-                    .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_Type');
+                
                 if (node instanceof Requirement) {
+                    values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.id })
+                        .ele('DEFINITION')
+                        .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_Requirement_ID');
+                    values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.label || '' })
+                        .ele('DEFINITION')
+                        .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_Requirement_Title');
+                    values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.description || '' })
+                        .ele('DEFINITION')
+                        .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_Requirement_Description');
+                    values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.contextValue || '' })
+                        .ele('DEFINITION')
+                        .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_Requirement_Type');
                     values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node instanceof Requirement ? node.priority || '' : '' })
                         .ele('DEFINITION')
                         .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_Priority');
                     values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node instanceof Requirement ? node.status || '' : '' })
                         .ele('DEFINITION')
                         .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_Status');
+
+                    specObject.ele('TYPE').ele('SPEC-OBJECT-TYPE-REF', '_RequirementType');
+                    
                 }
                 else if (node instanceof TestCase) {
+                    values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.id })
+                        .ele('DEFINITION')
+                        .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_TestCase_ID');
+                    values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.label || '' })
+                        .ele('DEFINITION')
+                        .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_TestCase_Title');
+                    values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.description || '' })
+                        .ele('DEFINITION')
+                        .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_TestCase_Description');
+                    values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.contextValue || '' })
+                        .ele('DEFINITION')
+                        .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_TestCase_Type');
                     values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.steps.join(',') || '' })
                         .ele('DEFINITION')
                         .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_Steps');
@@ -169,9 +241,24 @@ export class ReqifFileManager{
                     values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': JSON.stringify(node.parameters, null, 2) || '' })
                         .ele('DEFINITION')
                         .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_Parameters');
+
+                    specObject.ele('TYPE').ele('SPEC-OBJECT-TYPE-REF', '_TestCaseType');
+                }else if (node instanceof TestNode) {
+                    values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.id })
+                        .ele('DEFINITION')
+                        .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_Test_ID');
+                    values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.label || '' })
+                        .ele('DEFINITION')
+                        .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_Test_Title');
+                    values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.description || '' })
+                        .ele('DEFINITION')
+                        .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_Test_Description');
+                    values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.contextValue || '' })
+                        .ele('DEFINITION')
+                        .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_Test_Type');
+                    specObject.ele('TYPE').ele('SPEC-OBJECT-TYPE-REF', '_TestType');
                 }
                     
-                specObject.ele('TYPE').ele('SPEC-OBJECT-TYPE-REF', '_RequirementType');
             }
         
             const specifications = coreContent.ele('SPECIFICATIONS');
@@ -233,5 +320,7 @@ export class ReqifFileManager{
             }
             return result;
         }
+
+        
 
 }
