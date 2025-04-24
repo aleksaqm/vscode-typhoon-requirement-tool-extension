@@ -58,23 +58,6 @@ export class ReqifFileManager{
             const specTestAttributes = specObjectTestType.ele('SPEC-ATTRIBUTES');
             const specTestCaseAttributes = specObjectTestCaseType.ele('SPEC-ATTRIBUTES');
 
-
-            specReqtributes.ele('ATTRIBUTE-DEFINITION-STRING', {
-                IDENTIFIER: '_Requirement_ID',
-                'LAST-CHANGE': now,
-                'LONG-NAME': 'ReqIF.ID',
-            }).ele('TYPE').ele('DATATYPE-DEFINITION-STRING-REF', '_StringType');
-            specTestAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
-                IDENTIFIER: '_Test_ID',
-                'LAST-CHANGE': now,
-                'LONG-NAME': 'ReqIF.ID',
-            }).ele('TYPE').ele('DATATYPE-DEFINITION-STRING-REF', '_StringType');
-            specTestCaseAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
-                IDENTIFIER: '_TestCase_ID',
-                'LAST-CHANGE': now,
-                'LONG-NAME': 'ReqIF.ID',
-            }).ele('TYPE').ele('DATATYPE-DEFINITION-STRING-REF', '_StringType');
-    
             specReqtributes.ele('ATTRIBUTE-DEFINITION-STRING', {
                 IDENTIFIER: '_Requirement_Title',
                 'LAST-CHANGE': now,
@@ -187,9 +170,6 @@ export class ReqifFileManager{
                 const values = specObject.ele('VALUES');
                 
                 if (node instanceof Requirement) {
-                    values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.id })
-                        .ele('DEFINITION')
-                        .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_Requirement_ID');
                     values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.label || '' })
                         .ele('DEFINITION')
                         .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_Requirement_Title');
@@ -210,9 +190,6 @@ export class ReqifFileManager{
                     
                 }
                 else if (node instanceof TestCase) {
-                    values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.id })
-                        .ele('DEFINITION')
-                        .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_TestCase_ID');
                     values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.label || '' })
                         .ele('DEFINITION')
                         .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_TestCase_Title');
@@ -244,9 +221,6 @@ export class ReqifFileManager{
 
                     specObject.ele('TYPE').ele('SPEC-OBJECT-TYPE-REF', '_TestCaseType');
                 }else if (node instanceof TestNode) {
-                    values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.id })
-                        .ele('DEFINITION')
-                        .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_Test_ID');
                     values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.label || '' })
                         .ele('DEFINITION')
                         .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_Test_Title');
@@ -319,6 +293,114 @@ export class ReqifFileManager{
                 }
             }
             return result;
+        }
+
+        public static async importFromReqIF(reqifContent: string): Promise<TreeNode[]> {
+            const parser = new xml2js.Parser({ explicitArray: false });
+            const parsedReqIF = await parser.parseStringPromise(reqifContent);
+        
+            const specObjectsMap = new Map<string, TreeNode>();
+            const nodes: TreeNode[] = [];
+        
+            const specObjects = parsedReqIF['REQ-IF']['CORE-CONTENT']['REQ-IF-CONTENT']['SPEC-OBJECTS']['SPEC-OBJECT'];
+            for (const specObject of Array.isArray(specObjects) ? specObjects : [specObjects]) {
+                const id = specObject['$']['IDENTIFIER'];
+                const type = specObject['TYPE']['SPEC-OBJECT-TYPE-REF'];
+                const values = specObject['VALUES']['ATTRIBUTE-VALUE-STRING'];
+        
+                let label = '';
+                let description = '';
+                let priority = '';
+                let status = '';
+                let steps: string[] = [];
+                let prerequisites: string[] = [];
+                let testData: string[] = [];
+                let expectedResults: string[] = [];
+                let parameters: any[] = [];
+        
+                for (const value of Array.isArray(values) ? values : [values]) {
+                    const definitionRef = value['DEFINITION']['ATTRIBUTE-DEFINITION-STRING-REF'];
+                    const theValue = value['$']['THE-VALUE'];
+        
+                    switch (definitionRef) {
+                        case '_Requirement_Title':
+                        case '_Test_Title':
+                        case '_TestCase_Title':
+                            label = theValue;
+                            break;
+                        case '_Requirement_Description':
+                        case '_Test_Description':
+                        case '_TestCase_Description':
+                            description = theValue;
+                            break;
+                        case '_Priority':
+                            priority = theValue;
+                            break;
+                        case '_Status':
+                            status = theValue;
+                            break;
+                        case '_Steps':
+                            steps = theValue.split(',');
+                            break;
+                        case '_Prerequisites':
+                            prerequisites = theValue.split(',');
+                            break;
+                        case '_TestData':
+                            testData = theValue.split(',');
+                            break;
+                        case '_ExpectedResults':
+                            expectedResults = theValue.split(',');
+                            break;
+                        case '_Parameters':
+                            parameters = JSON.parse(theValue || '[]');
+                            break;
+                    }
+                }
+        
+                let node: TreeNode;
+                if (type === '_RequirementType') {
+                    node = new Requirement(id, label, description, priority as 'High' | 'Medium' | 'Low', status as 'Draft' | 'Ready' | 'Reviewed' | 'Approved' | 'Released');
+                } else if (type === '_TestCaseType') {
+                    node = new TestCase(id, label, description, steps, prerequisites, testData, expectedResults, parameters);
+                } else if (type === '_TestType') {
+                    node = new TestNode(id, label, description);
+                } else {
+                    continue;
+                }
+        
+                specObjectsMap.set(id, node);
+            }
+        
+            const specHierarchy = parsedReqIF['REQ-IF']['CORE-CONTENT']['REQ-IF-CONTENT']['SPECIFICATIONS']['SPECIFICATION']['CHILDREN']['SPEC-HIERARCHY'];
+            const buildHierarchy = (hierarchy: any, parent: TreeNode | null) => {
+                const objectRef = hierarchy['OBJECT']['SPEC-OBJECT-REF'];
+                const node = specObjectsMap.get(objectRef);
+        
+                if (node) {
+                    if (parent) {
+                        parent.children.push(node);
+                        node.parent = parent;
+                    }
+                    nodes.push(node);
+                    
+        
+                    if (hierarchy['CHILDREN'] && hierarchy['CHILDREN']['SPEC-HIERARCHY']) {
+                        const children = Array.isArray(hierarchy['CHILDREN']['SPEC-HIERARCHY'])
+                            ? hierarchy['CHILDREN']['SPEC-HIERARCHY']
+                            : [hierarchy['CHILDREN']['SPEC-HIERARCHY']];
+                        for (const child of children) {
+                            buildHierarchy(child, node);
+                        }
+                    }
+                }
+            };
+        
+            const rootHierarchy = Array.isArray(specHierarchy) ? specHierarchy : [specHierarchy];
+            for (const hierarchy of rootHierarchy) {
+                buildHierarchy(hierarchy, null);
+            }
+        
+            return nodes;
         }
 
         
