@@ -51,7 +51,7 @@ export class TabularViewProvider {
             if (message.command === 'updateNode') {
                 this.updateNode(message.data.id, message.data.field, message.data.value);
             }else if (message.command === 'deleteRow') {
-                this.deleteNode(message.data.id);
+                this.deleteNode(message.data.id); //pazi
             }
         });
     }
@@ -105,11 +105,11 @@ export class TabularViewProvider {
         });
     }
 
-    private static deleteNode(id: string): void {
+    private static async deleteNode(id: string): Promise<void> {
         const deleteRecursively = (nodes: TreeNode[], nodeId: string): TreeNode[] => {
             return nodes.filter((node) => {
                 if (node.id === nodeId) {
-                    return false; // Remove the node
+                    return false;
                 }
                 if (node.children) {
                     node.children = deleteRecursively(node.children, nodeId); // Recurse for children
@@ -117,12 +117,16 @@ export class TabularViewProvider {
                 return true;
             });
         };
-    
         if (this.requirementDataProvider) {
-            const allNodes = this.requirementDataProvider.getAllNodes();
-            const updatedNodes = deleteRecursively(allNodes, id);
-            this.requirementDataProvider.updateTree(updatedNodes);
-            this.requirementDataProvider.refresh();
+            const confirm = await vscode.window.showQuickPick(['Yes', 'No'], {
+                placeHolder: "Are you sure you want to delete this node?",
+            });
+            if (confirm === 'Yes') {
+                const allNodes = this.requirementDataProvider.getAllNodes();
+                const updatedNodes = deleteRecursively(allNodes, id);
+                this.requirementDataProvider.updateTree(updatedNodes);
+                this.requirementDataProvider.refresh();
+            }
         }
     }
 
@@ -204,6 +208,7 @@ export class TabularViewProvider {
                     </tbody>
                 </table>
                 <script>
+                    window.confirm = () => true
                     const tree = ${treeJson};
                     let selectedRow = null;
                     const vscode = acquireVsCodeApi();
@@ -308,16 +313,6 @@ export class TabularViewProvider {
                         }
                     });
     
-                    document.getElementById('deleteRow').addEventListener('click', () => {
-                        if (selectedRow) {
-                            const rowId = selectedRow.getAttribute('data-id');
-                            alert('Delete row with ID: ' + rowId);
-                            // Add logic to delete the row
-                        } else {
-                            alert('No row selected!');
-                        }
-                    });
-    
                     document.getElementById('editRow').addEventListener('click', () => {
                         if (selectedRow) {
                             const rowId = selectedRow.getAttribute('data-id');
@@ -331,16 +326,11 @@ export class TabularViewProvider {
                     document.getElementById('deleteRow').addEventListener('click', () => {
                         if (selectedRow) {
                             const rowId = selectedRow.getAttribute('data-id');
-                            const confirmation = confirm('Are you sure you want to delete this row and its descendants?');
-                            if (confirmation) {
-                                vscode.postMessage({
-                                    command: 'deleteRow',
-                                    data: { id: rowId },
-                                });
-                            }
-                        } else {
-                            alert('No row selected!');
-                        }
+                            vscode.postMessage({
+                                command: 'deleteRow',
+                                data: { id: rowId },
+                            });
+                        } 
                     });
     
                     function collapseDescendants(parentId) {
