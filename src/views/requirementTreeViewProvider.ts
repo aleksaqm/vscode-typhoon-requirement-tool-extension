@@ -22,14 +22,20 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
 
     getTreeItem(element: TreeNode): vscode.TreeItem {
         const hasChildren = element.children && element.children.length > 0;
-
-        return {
+    
+        const treeItem: vscode.TreeItem = {
             label: element.label,
             collapsibleState: hasChildren
-                ? vscode.TreeItemCollapsibleState.Collapsed // Show arrows for nodes with children
-                : vscode.TreeItemCollapsibleState.None, // No arrows for leaf nodes
-            contextValue: element.contextValue, // Optional: Add context for commands
+                ? vscode.TreeItemCollapsibleState.Collapsed
+                : vscode.TreeItemCollapsibleState.None,
+            contextValue: element.contextValue,
         };
+    
+        if (element instanceof Requirement) {
+            treeItem.iconPath = this.getIconForRequirement(element);
+        }
+    
+        return treeItem;
     }
 
     getChildren(element?: TreeNode): Thenable<TreeNode[]> {
@@ -67,6 +73,23 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
     onNodeSelected(node: TreeNode | null): void {
         if (this.detailsViewProvider) {
             this.detailsViewProvider.updateDetails(node);
+        }
+    }
+
+    private getIconForRequirement(requirement: Requirement): vscode.ThemeIcon | { light: vscode.Uri; dark: vscode.Uri } {
+        switch (requirement.status) {
+            case "Draft":
+                return new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.red")); // Red icon
+            case "Ready":
+                return new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.orange")); // Orange icon
+            case "Reviewed":
+                return new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.yellow")); // Yellow icon
+            case "Approved":
+                return new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.blue")); // Blue icon
+            case "Released":
+                return new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.green")); // Green icon
+            default:
+                return new vscode.ThemeIcon("circle-outline"); // Default icon
         }
     }
 
