@@ -21,7 +21,15 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
     }
 
     getTreeItem(element: TreeNode): vscode.TreeItem {
-        return element;
+        const hasChildren = element.children && element.children.length > 0;
+
+        return {
+            label: element.label,
+            collapsibleState: hasChildren
+                ? vscode.TreeItemCollapsibleState.Collapsed // Show arrows for nodes with children
+                : vscode.TreeItemCollapsibleState.None, // No arrows for leaf nodes
+            contextValue: element.contextValue, // Optional: Add context for commands
+        };
     }
 
     getChildren(element?: TreeNode): Thenable<TreeNode[]> {

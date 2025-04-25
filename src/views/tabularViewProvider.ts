@@ -61,6 +61,9 @@ export class TabularViewProvider {
             }else if (message.command === 'updateParameters'){
                 console.log(message.data);
                 this.updateParameters(message.data.id, message.data.parameters);
+            }else if (message.command === 'updateArray'){
+                console.log(message.data);
+                this.updateArray(message.data.id, message.data.field, message.data.value);
             }
         });
     }
@@ -181,6 +184,16 @@ export class TabularViewProvider {
         }
     }
 
+    private static updateArray(id: string, field: string, value: string): void {
+        const node = this.findNodeById(this.requirementDataProvider?.getAllNodes() || [], id);
+        if (node instanceof TestCase) {
+            if (field === 'steps' || field === 'prerequisites' || field === 'testData' || field === 'expectedResults') {
+                node[field] = value ? value.split(',').map(item => item.trim()) : [];
+            }
+            this.requirementDataProvider?.refresh();
+        }
+    }
+
     private static getHtml(requirements: TreeNode[], expandedNodeIds: string[] = []): string {
         const treeJson = JSON.stringify(requirements);
         const expandedIdsJson = JSON.stringify(expandedNodeIds);
@@ -260,6 +273,37 @@ export class TabularViewProvider {
                         padding: 8px;
                         text-align: left;
                     }
+
+                    #arrayModal {
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        background-color: rgba(0, 0, 0, 0.5);
+                        color: black;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        z-index: 1000;
+                    }
+
+                    #arrayItemsList {
+                        list-style-type: none;
+                        padding: 0;
+                        margin-bottom: 10px;
+                    }
+
+                    #arrayItemsList li {
+                        display: flex;
+                        justify-content: space-between;
+                        margin-bottom: 5px;
+                    }
+
+                    #arrayItemsList li input {
+                        flex: 1;
+                        margin-right: 5px;
+                    }
                     .hidden {
                         display: none !important;
                     }
@@ -313,6 +357,18 @@ export class TabularViewProvider {
                         <button id="cancelParameters">Cancel</button>
                     </div>
                 </div>
+                <div id="arrayModal" class="hidden">
+                    <div class="modal-content">
+                        <h2>Manage Items</h2>
+                        <ul id="arrayItemsList">
+                            <!-- Array items will be dynamically added here -->
+                        </ul>
+                        <input type="text" id="newArrayItem" placeholder="Add new item" />
+                        <button id="addArrayItem">Add</button>
+                        <button id="saveArrayItems">Save</button>
+                        <button id="cancelArrayItems">Cancel</button>
+                    </div>
+                </div>
                 <script>
                     window.confirm = () => true
                     const tree = ${treeJson};
@@ -331,10 +387,10 @@ export class TabularViewProvider {
                                 <td>\${node.contextValue || ''}</td>
                                 <td>\${node.priority || ''}</td>
                                 <td>\${node.status || ''}</td>
-                                <td>\${node.steps || ''}</td>
-                                <td>\${node.prerequisites || ''}</td>
-                                <td>\${node.testData || ''}</td>
-                                <td>\${node.expectedResults || ''}</td>
+                                <td>\${node.contextValue === 'testCase' ? '<button class="manage-array" data-field="steps">Manage</button>' : ''}</td>
+                                <td>\${node.contextValue === 'testCase' ? '<button class="manage-array" data-field="prerequisites">Manage</button>' : ''}</td>
+                                <td>\${node.contextValue === 'testCase' ? '<button class="manage-array" data-field="testData">Manage</button>' : ''}</td>
+                                <td>\${node.contextValue === 'testCase' ? '<button class="manage-array" data-field="expectedResults">Manage</button>' : ''}</td>
                                 <td>
                                     \${node.contextValue === 'testCase' ? '<button class="manage-parameters">Manage</button>' : ''}
                                 </td>
@@ -380,17 +436,14 @@ export class TabularViewProvider {
                                 expander.textContent = '[-]';
                             }
                         } else if (event.target.closest('tr')) {
-                            // Handle row selection
                             const row = event.target.closest('tr');
                             if (row.parentElement.tagName === 'THEAD') {
                                 return;
                             }
                             if (selectedRow === row) {
-                                // If the clicked row is already selected, unselect it
                                 selectedRow.classList.remove('selected');
                                 selectedRow = null;
                             } else {
-                                // Select the clicked row
                                 if (selectedRow) {
                                     selectedRow.classList.remove('selected');
                                 }
@@ -432,7 +485,6 @@ export class TabularViewProvider {
                             return;
                         }
 
-                        // Create a new row with input fields
                         const newRow = document.createElement('tr');
                         newRow.innerHTML = \`
                                 <td><input type="text" placeholder="Name" class="expandable-input"></td>
@@ -470,8 +522,27 @@ export class TabularViewProvider {
                             table.appendChild(newRow);
                         }
 
+                        // const saveButton = document.createElement('button');
+                        // saveButton.textContent = 'Save';
                         const saveButton = document.createElement('button');
                         saveButton.textContent = 'Save';
+                        saveButton.className = 'save-button'; // Add a class for styling
+                        saveButton.title = 'Click to save the new node'; // Add a tooltip for accessibility
+                        saveButton.style.padding = '5px 10px'; // Add padding for better appearance
+                        saveButton.style.backgroundColor = '#4CAF50'; // Green background
+                        saveButton.style.color = 'white'; // White text
+                        saveButton.style.border = 'none'; // Remove border
+                        saveButton.style.borderRadius = '4px'; // Rounded corners
+                        saveButton.style.cursor = 'pointer'; // Pointer cursor on hover
+                        saveButton.style.marginTop = '5px'; // Add some spacing above the button
+
+                        // Add hover effect
+                        saveButton.addEventListener('mouseover', () => {
+                            saveButton.style.backgroundColor = '#45a049'; // Darker green on hover
+                        });
+                        saveButton.addEventListener('mouseout', () => {
+                            saveButton.style.backgroundColor = '#4CAF50'; // Revert to original color
+                        });
                         saveButton.addEventListener('click', () => saveNewNode(newRow, type, parentId));
                         newRow.appendChild(saveButton);
                     }
@@ -483,7 +554,7 @@ export class TabularViewProvider {
                             label: inputs[0].value.trim(),
                             description: inputs[1].value.trim(),
                             contextValue: type,
-                            priority: type === 'requirement' ? selects[0]?.value : undefined, // Get value from the first dropdown
+                            priority: type === 'requirement' ? selects[0]?.value : undefined,
                             status: type === 'requirement' ? selects[1]?.value : undefined,
                             steps: type === 'testcase' ? inputs[2]?.value.trim().split(',').map(s => s.trim()) : [],
                             prerequisites: type === 'testcase' ? inputs[3]?.value.trim().split(',').map(s => s.trim()) : [],
@@ -499,7 +570,6 @@ export class TabularViewProvider {
                             return;
                         }
 
-                        // Send the new node to the backend
                         vscode.postMessage({
                             command: 'addNode',
                             data: newNode,
@@ -551,7 +621,6 @@ export class TabularViewProvider {
                         }
 
                         const rowType = selectedRow.children[2].textContent.trim().toLowerCase(); 
-                        // Enable/disable buttons based on the selected row type
                         console.log(rowType);
                         if (rowType === 'requirement') {
                             addRequirementButton.disabled = false;
@@ -597,7 +666,6 @@ export class TabularViewProvider {
                         const columnIndex = Array.from(cell.parentNode.children).indexOf(cell);
                         const rowType = row.children[2].textContent.trim().toLowerCase();
 
-                        // Define editable columns (e.g., Priority, Status, etc.)
                         const editableColumns = {
                             0: 'label', // Name column
                             1: 'description', // Description column
@@ -710,6 +778,7 @@ export class TabularViewProvider {
                             },
                         });
                     }
+                        
                     const expandedNodeIds = ${expandedIdsJson};
                     expandedNodeIds.forEach(id => {
                         const expander = document.querySelector(\`tr[data-id="\${id}"] .expandable\`);
@@ -747,7 +816,6 @@ export class TabularViewProvider {
                         const parametersTable = document.getElementById('parametersTable').querySelector('tbody');
                         parametersTable.innerHTML = '';
 
-                        // Populate the table with existing parameters
                         parameters.forEach((param, index) => {
                             const row = document.createElement('tr');
                             row.innerHTML = \`
@@ -767,7 +835,6 @@ export class TabularViewProvider {
                             parametersTable.appendChild(row);
                         });
 
-                        // Add event listener for adding a new parameter
                         document.getElementById('addParameter').onclick = () => {
                             const row = document.createElement('tr');
                             row.innerHTML = \`
@@ -787,7 +854,6 @@ export class TabularViewProvider {
                             parametersTable.appendChild(row);
                         };
 
-                        // Add event listener for deleting a parameter
                         parametersTable.addEventListener('click', (event) => {
                             if (event.target.classList.contains('delete-parameter')) {
                                 const row = event.target.closest('tr');
@@ -795,7 +861,6 @@ export class TabularViewProvider {
                             }
                         });
 
-                        // Add event listener for saving parameters
                         document.getElementById('saveParameters').onclick = () => {
                             const updatedParameters = Array.from(parametersTable.querySelectorAll('tr')).map((row) => ({
                                 name: row.querySelector('.parameter-name').value.trim(),
@@ -811,7 +876,6 @@ export class TabularViewProvider {
                             onSave(updatedParameters);
                         };
 
-                        // Add event listener for canceling
                         document.getElementById('cancelParameters').onclick = () => {
                             modal.classList.add('hidden'); // Hide the modal
                         };
@@ -840,6 +904,82 @@ export class TabularViewProvider {
                             default:
                                 return false; // Invalid type
                         }
+                    }
+
+                    document.addEventListener('click', (event) => {
+                        if (event.target.classList.contains('manage-array')) {
+                            const row = event.target.closest('tr');
+                            const rowId = row.getAttribute('data-id');
+                            const fieldName = event.target.getAttribute('data-field');
+                            const node = findNodeById(tree, rowId);
+
+                            if (node && node[fieldName]) {
+                                openArrayModal(fieldName, node[fieldName], (field, updatedItems) => {
+                                    node[field] = updatedItems;
+
+                                    vscode.postMessage({
+                                        command: 'updateArray',
+                                        data: {
+                                            id: rowId,
+                                            field: field,
+                                            value: updatedItems.join(','),
+                                        },
+                                    });
+
+                                    row.querySelector(\`button[data-field="\${field}"]\`).textContent = 'Manage';
+                                });
+                            }
+                        }
+                    });
+
+
+                    function openArrayModal(fieldName, currentItems, onSave) {
+                        const modal = document.getElementById('arrayModal');
+                        const itemsList = document.getElementById('arrayItemsList');
+                        const newItemInput = document.getElementById('newArrayItem');
+
+                        itemsList.innerHTML = ''; // Clear existing items
+
+                        currentItems.forEach((item, index) => {
+                            const listItem = document.createElement('li');
+                            listItem.innerHTML = \`
+                                <input type="text" value="\${item}" class="array-item-input" />
+                                <button class="delete-array-item" data-index="\${index}">Delete</button>
+                            \`;
+                            itemsList.appendChild(listItem);
+                        });
+
+                        document.getElementById('addArrayItem').onclick = () => {
+                            const value = newItemInput.value.trim();
+                            if (value) {
+                                const listItem = document.createElement('li');
+                                listItem.innerHTML = \`
+                                    <input type="text" value="\${value}" class="array-item-input" />
+                                    <button class="delete-array-item">Delete</button>
+                                \`;
+                                itemsList.appendChild(listItem);
+                                newItemInput.value = '';
+                            }
+                        };
+
+                        itemsList.addEventListener('click', (event) => {
+                            if (event.target.classList.contains('delete-array-item')) {
+                                const listItem = event.target.closest('li');
+                                listItem.remove();
+                            }
+                        });
+
+                        document.getElementById('saveArrayItems').onclick = () => {
+                            const updatedItems = Array.from(itemsList.querySelectorAll('.array-item-input')).map(input => input.value.trim());
+                            modal.classList.add('hidden'); // Hide the modal
+                            onSave(fieldName, updatedItems);
+                        };
+
+                        document.getElementById('cancelArrayItems').onclick = () => {
+                            modal.classList.add('hidden'); // Hide the modal
+                        };
+
+                        modal.classList.remove('hidden'); // Show the modal
                     }
                 </script>
             </body>
