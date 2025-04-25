@@ -1,6 +1,10 @@
 import * as vscode from 'vscode';
 import { TreeNode } from '../models/treeNode';
 import { RequirementTreeProvider } from './requirementTreeViewProvider';
+import { getUniqueId } from '../utils/idGenerator';
+import { Requirement } from '../models/requirement';
+import { TestNode } from '../models/test';
+import { TestCase } from '../models/testCase';
 
 export class TabularViewProvider {
     private static panel: vscode.WebviewPanel | null = null;
@@ -52,6 +56,11 @@ export class TabularViewProvider {
                 this.updateNode(message.data.id, message.data.field, message.data.value);
             }else if (message.command === 'deleteRow') {
                 this.deleteNode(message.data.id); //pazi
+            }else if (message.command === 'addNode') {
+                this.addNode(message.data);
+            }else if (message.command === 'updateParameters'){
+                console.log(message.data);
+                this.updateParameters(message.data.id, message.data.parameters);
             }
         });
     }
@@ -130,6 +139,48 @@ export class TabularViewProvider {
         }
     }
 
+    private static addNode(newNode: any): void {
+        var nodeToAdd : TreeNode;
+        try{
+            if (newNode.contextValue === 'requirement'){
+                nodeToAdd = new Requirement(getUniqueId(), newNode.label, newNode.description, newNode.priority, newNode.status);
+            }
+            else if (newNode.contextValue === 'test'){
+                nodeToAdd = new TestNode(getUniqueId(), newNode.label, newNode.description);
+            }
+            else if (newNode.contextValue === 'testcase'){
+                nodeToAdd = new TestCase(getUniqueId(), newNode.label, newNode.description, newNode.steps, newNode.prerequisites, newNode.testData, newNode.expectedResults, newNode.parameters);
+            }else{
+                console.log("Invalid node type.");
+                return;
+            }
+        }catch(e){
+            vscode.window.showErrorMessage('Invalid data format for new node.');
+            return;
+        }
+        const allNodes = this.requirementDataProvider?.getAllNodes() || [];
+        if (newNode.parentId) {
+            const parentNode = this.findNodeById(allNodes, newNode.parentId);
+            if (parentNode) {
+                parentNode.children = parentNode.children || [];
+                parentNode.children.push(nodeToAdd);
+            }
+        } else {
+            allNodes.push(nodeToAdd);
+        }
+    
+        this.requirementDataProvider?.updateTree(allNodes);
+        this.requirementDataProvider?.refresh();
+    }
+
+    private static updateParameters(id: string, parameters: string): void {
+        const node = this.findNodeById(this.requirementDataProvider?.getAllNodes() || [], id);
+        if (node instanceof TestCase) {
+            node.parameters = JSON.parse(parameters);
+            this.requirementDataProvider?.refresh();
+        }
+    }
+
     private static getHtml(requirements: TreeNode[], expandedNodeIds: string[] = []): string {
         const treeJson = JSON.stringify(requirements);
         const expandedIdsJson = JSON.stringify(expandedNodeIds);
@@ -157,9 +208,7 @@ export class TabularViewProvider {
                     .expandable {
                         cursor: pointer;
                     }
-                    .hidden {
-                        display: none;
-                    }
+                    
                     .selected {
                         background-color:rgb(142, 143, 144);
                     }
@@ -177,6 +226,43 @@ export class TabularViewProvider {
                         padding: 5px;
                         font-size: 14px;
                     }
+                    #parametersModal {
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        background-color: rgba(0, 0, 0, 0.5);
+                        color: black;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        z-index: 1000;
+                    }
+
+                    .modal-content {
+                        background-color: white;
+                        padding: 20px;
+                        border-radius: 5px;
+                        text-align: center;
+                        width: 90%; /* Adjust width to fit within the window */
+                        max-width: 600px; /* Limit the maximum width */
+                        overflow-x: auto; /* Add horizontal scrolling if needed */
+                    }
+
+                    #parametersTable {
+                        width: 100%; /* Ensure the table takes up the full width of the modal */
+                        border-collapse: collapse;
+                    }
+
+                    #parametersTable th, #parametersTable td {
+                        border: 1px solid #ccc;
+                        padding: 8px;
+                        text-align: left;
+                    }
+                    .hidden {
+                        display: none !important;
+                    }
                 </style>
             </head>
             <body>
@@ -186,7 +272,6 @@ export class TabularViewProvider {
                     <button id="addTest">Add Test</button>
                     <button id="addTestCase">Add Test Case</button>
                     <button id="deleteRow">Delete Row</button>
-                    <button id="editRow">Edit Row</button>
                 </div>
                 <table>
                     <thead>
@@ -207,6 +292,27 @@ export class TabularViewProvider {
                         <!-- Root rows will be dynamically generated -->
                     </tbody>
                 </table>
+                <div id="parametersModal" class="hidden">
+                    <div class="modal-content">
+                        <h2>Manage Parameters</h2>
+                        <table id="parametersTable">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Value</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Parameter rows will be dynamically added here -->
+                            </tbody>
+                        </table>
+                        <button id="addParameter">Add Parameter</button>
+                        <button id="saveParameters">Save</button>
+                        <button id="cancelParameters">Cancel</button>
+                    </div>
+                </div>
                 <script>
                     window.confirm = () => true
                     const tree = ${treeJson};
@@ -229,7 +335,9 @@ export class TabularViewProvider {
                                 <td>\${node.prerequisites || ''}</td>
                                 <td>\${node.testData || ''}</td>
                                 <td>\${node.expectedResults || ''}</td>
-                                <td>\${node.parameters ? JSON.stringify(node.parameters) : ''}</td>
+                                <td>
+                                    \${node.contextValue === 'testCase' ? '<button class="manage-parameters">Manage</button>' : ''}
+                                </td>
                             </tr>
                         \`;
                     }
@@ -294,33 +402,15 @@ export class TabularViewProvider {
                     });
     
                     document.getElementById('addRequirement').addEventListener('click', () => {
-                        if (selectedRow) {
-                            const parentId = selectedRow.getAttribute('data-id');
-                            alert('Add Requirement under parent ID: ' + parentId);
-                            // Add logic to add a requirement
-                        } else {
-                            alert('No row selected!');
-                        }
+                        addNode('requirement');
                     });
     
                     document.getElementById('addTest').addEventListener('click', () => {
-                        if (selectedRow) {
-                            const parentId = selectedRow.getAttribute('data-id');
-                            alert('Add Test under parent ID: ' + parentId);
-                            // Add logic to add a test
-                        } else {
-                            alert('No row selected!');
-                        }
+                        addNode('test');
                     });
-    
-                    document.getElementById('editRow').addEventListener('click', () => {
-                        if (selectedRow) {
-                            const rowId = selectedRow.getAttribute('data-id');
-                            alert('Edit row with ID: ' + rowId);
-                            // Add logic to edit the row
-                        } else {
-                            alert('No row selected!');
-                        }
+
+                    document.getElementById('addTestCase').addEventListener('click', () => {
+                        addNode('testcase');
                     });
 
                     document.getElementById('deleteRow').addEventListener('click', () => {
@@ -332,6 +422,91 @@ export class TabularViewProvider {
                             });
                         } 
                     });
+
+                    function addNode(type) {
+                        const parentId = selectedRow ? selectedRow.getAttribute('data-id') : null;
+                        const parentType = selectedRow ? selectedRow.children[2].textContent.trim().toLowerCase() : null;
+
+                        if ((parentType === 'testcase' || ((type === 'requirement' || type==='test') && parentType !== 'requirement') || (type === 'testcase' && parentType !== 'test')) && parentType) {
+                            alert('Invalid operation: Cannot add this type of node here.');
+                            return;
+                        }
+
+                        // Create a new row with input fields
+                        const newRow = document.createElement('tr');
+                        newRow.innerHTML = \`
+                                <td><input type="text" placeholder="Name" class="expandable-input"></td>
+                                <td><input type="text" placeholder="Description" class="expandable-input"></td>
+                                <td>\${type}</td>
+                                <td>
+                                    \${type === 'requirement' ? \`
+                                        <select class="expandable-input">
+                                            <option value="High">High</option>
+                                            <option value="Medium">Medium</option>
+                                            <option value="Low">Low</option>
+                                        </select>\` : ''}
+                                </td>
+                                <td>
+                                    \${type === 'requirement' ? \`
+                                        <select class="expandable-input">
+                                            <option value="Draft">Draft</option>
+                                            <option value="Ready">Ready</option>
+                                            <option value="Reviewed">Reviewed</option>
+                                            <option value="Approved">Approved</option>
+                                            <option value="Released">Released</option>
+                                        </select>\` : ''}
+                                </td>
+                                <td>\${type === 'testcase' ? '<input type="text" placeholder="Steps" class="expandable-input">' : ''}</td>
+                                <td>\${type === 'testcase' ? '<input type="text" placeholder="Prerequisites" class="expandable-input">' : ''}</td>
+                                <td>\${type === 'testcase' ? '<input type="text" placeholder="Test Data" class="expandable-input">' : ''}</td>
+                                <td>\${type === 'testcase' ? '<input type="text" placeholder="Expected Results" class="expandable-input">' : ''}</td>
+                                <td>\${type === 'testcase' ? '<input type="text" placeholder="Parameters" class="expandable-input">' : ''}</td>
+                            \`;
+
+                        const table = document.getElementById('requirementsTable');
+                        if (selectedRow) {
+                            selectedRow.insertAdjacentElement('afterend', newRow);
+                        } else {
+                            table.appendChild(newRow);
+                        }
+
+                        const saveButton = document.createElement('button');
+                        saveButton.textContent = 'Save';
+                        saveButton.addEventListener('click', () => saveNewNode(newRow, type, parentId));
+                        newRow.appendChild(saveButton);
+                    }
+
+                    function saveNewNode(row, type, parentId) {
+                        const inputs = row.querySelectorAll('input');
+                        const selects = row.querySelectorAll('select');
+                        const newNode = {
+                            label: inputs[0].value.trim(),
+                            description: inputs[1].value.trim(),
+                            contextValue: type,
+                            priority: type === 'requirement' ? selects[0]?.value : undefined, // Get value from the first dropdown
+                            status: type === 'requirement' ? selects[1]?.value : undefined,
+                            steps: type === 'testcase' ? inputs[2]?.value.trim().split(',').map(s => s.trim()) : [],
+                            prerequisites: type === 'testcase' ? inputs[3]?.value.trim().split(',').map(s => s.trim()) : [],
+                            testData: type === 'testcase' ? inputs[4]?.value.trim().split(',').map(s => s.trim()) : [],
+                            expectedResults: type === 'testcase' ? inputs[5]?.value.trim().split(',').map(s => s.trim()) : [],
+                            parameters: type === 'testcase' ? inputs[6]?.value.trim().split(',').map(s => s.trim()) : [],
+                            children: [],
+                            parentId: parentId,
+                        };
+
+                        if (!newNode.label) {
+                            alert('Name is required.');
+                            return;
+                        }
+
+                        // Send the new node to the backend
+                        vscode.postMessage({
+                            command: 'addNode',
+                            data: newNode,
+                        });
+
+                        row.remove();
+                    }
     
                     function collapseDescendants(parentId) {
                         document.querySelectorAll(\`tr[data-parent-id="\${parentId}"]\`).forEach(childRow => {
@@ -366,14 +541,12 @@ export class TabularViewProvider {
                         const addTestButton = document.getElementById('addTest');
                         const addTestCaseButton = document.getElementById('addTestCase');
                         const deleteRowButton = document.getElementById('deleteRow');
-                        const editRowButton = document.getElementById('editRow');
 
                         if (!selectedRow) {
-                            addRequirementButton.disabled = true;
+                            addRequirementButton.disabled = false;
                             addTestButton.disabled = true;
                             addTestCaseButton.disabled = true;
                             deleteRowButton.disabled = true;
-                            editRowButton.disabled = true;
                             return;
                         }
 
@@ -385,19 +558,16 @@ export class TabularViewProvider {
                             addTestButton.disabled = false;
                             addTestCaseButton.disabled = true;
                             deleteRowButton.disabled = false;
-                            editRowButton.disabled = false;
                         } else if (rowType === 'test') {
                             addRequirementButton.disabled = true;
                             addTestButton.disabled = true;
                             addTestCaseButton.disabled = false;
                             deleteRowButton.disabled = false;
-                            editRowButton.disabled = false;
                         } else if (rowType === 'testcase') {
                             addRequirementButton.disabled = true;
                             addTestButton.disabled = true;
                             addTestCaseButton.disabled = true;
                             deleteRowButton.disabled = false;
-                            editRowButton.disabled = false;
                         }
                     }
 
@@ -437,7 +607,7 @@ export class TabularViewProvider {
                             6: 'prerequisites', // Prerequisites column
                             7: 'testData', // Test Data column
                             8: 'expectedResults', // Expected Results column
-                            9: 'parameters', // Parameters column
+                            // 9: 'parameters', // Parameters column
                         };
 
                         if (!(columnIndex in editableColumns)) return;
@@ -547,6 +717,130 @@ export class TabularViewProvider {
                             expander.click(); // Trigger expansion
                         }
                     });
+
+
+                    document.addEventListener('click', (event) => {
+                        if (event.target.classList.contains('manage-parameters')) {
+                            const row = event.target.closest('tr');
+                            const rowId = row.getAttribute('data-id');
+                            const node = findNodeById(tree, rowId);
+
+                            if (node && node.contextValue === 'testCase') {
+                                openParametersModal(node.parameters || [], (updatedParameters) => {
+                                    node.parameters = updatedParameters;
+
+                                    // Send updated parameters to the backend
+                                    vscode.postMessage({
+                                        command: 'updateParameters',
+                                        data: {
+                                            id: rowId,
+                                            parameters: JSON.stringify(updatedParameters),
+                                        },
+                                    });
+                                });
+                            }
+                        }
+                    });
+
+                    function openParametersModal(parameters, onSave) {
+                        const modal = document.getElementById('parametersModal');
+                        const parametersTable = document.getElementById('parametersTable').querySelector('tbody');
+                        parametersTable.innerHTML = '';
+
+                        // Populate the table with existing parameters
+                        parameters.forEach((param, index) => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = \`
+                                <td><input type="text" value="\${param.name}" class="parameter-name"></td>
+                                <td>
+                                    <select class="parameter-type">
+                                        <option value="string" $\{param.type === 'string' ? 'selected' : ''}>String</option>
+                                        <option value="int" $\{param.type === 'int' ? 'selected' : ''}>Integer</option>
+                                        <option value="float" $\{param.type === 'float' ? 'selected' : ''}>Float</option>
+                                        <option value="bool" \${param.type === 'bool' ? 'selected' : ''}>Boolean</option>
+                                        <option value="array" \${param.type === 'array' ? 'selected' : ''}>Array</option>
+                                    </select>
+                                </td>
+                                <td><input type="text" value="\${param.value}" class="parameter-value"></td>
+                                <td><button class="delete-parameter" data-index="\${index}">Delete</button></td>
+                            \`;
+                            parametersTable.appendChild(row);
+                        });
+
+                        // Add event listener for adding a new parameter
+                        document.getElementById('addParameter').onclick = () => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = \`
+                                <td><input type="text" class="parameter-name"></td>
+                                <td>
+                                    <select class="parameter-type">
+                                        <option value="string">String</option>
+                                        <option value="int">Integer</option>
+                                        <option value="float">Float</option>
+                                        <option value="bool">Boolean</option>
+                                        <option value="array">Array</option>
+                                    </select>
+                                </td>
+                                <td><input type="text" class="parameter-value"></td>
+                                <td><button class="delete-parameter">Delete</button></td>
+                            \`;
+                            parametersTable.appendChild(row);
+                        };
+
+                        // Add event listener for deleting a parameter
+                        parametersTable.addEventListener('click', (event) => {
+                            if (event.target.classList.contains('delete-parameter')) {
+                                const row = event.target.closest('tr');
+                                row.remove();
+                            }
+                        });
+
+                        // Add event listener for saving parameters
+                        document.getElementById('saveParameters').onclick = () => {
+                            const updatedParameters = Array.from(parametersTable.querySelectorAll('tr')).map((row) => ({
+                                name: row.querySelector('.parameter-name').value.trim(),
+                                type: row.querySelector('.parameter-type').value,
+                                value: row.querySelector('.parameter-value').value.trim(),
+                            }));
+                            for (const param of updatedParameters) {
+                                if (isValidType(param.type, param.value) === false) {
+                                    return; //message
+                                }
+                            }
+                            modal.classList.add('hidden'); // Hide the modal
+                            onSave(updatedParameters);
+                        };
+
+                        // Add event listener for canceling
+                        document.getElementById('cancelParameters').onclick = () => {
+                            modal.classList.add('hidden'); // Hide the modal
+                        };
+
+                        modal.classList.remove('hidden'); // Show the modal
+                    }
+
+                    function isValidType(type, value) {
+                        console.log(type, value);
+                        switch (type) {
+                            case 'int':
+                                return Number.isInteger(Number(value)); // Checks if the value is an integer
+                            case 'float':
+                                return !isNaN(value) && Number(value) === parseFloat(value); // Checks if the value is a float
+                            case 'bool':
+                                return value.toLowerCase() === 'true' || value.toLowerCase() === 'false'; // Matches "true" or "false" (case-insensitive)
+                            case 'string':
+                                return typeof value === 'string'; // Always true for strings
+                            case 'array':
+                                try {
+                                    const parsed = JSON.parse(value);
+                                    return Array.isArray(parsed); // Checks if the value is a valid JSON array
+                                } catch {
+                                    return false;
+                                }
+                            default:
+                                return false; // Invalid type
+                        }
+                    }
                 </script>
             </body>
             </html>
