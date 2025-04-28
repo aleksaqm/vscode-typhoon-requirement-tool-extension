@@ -197,13 +197,6 @@ export class TestCaseWebviewProvider {
                         var value = document.getElementById('parameterValue').value.trim();
 
                         if (name && type && value) {
-                            if (parameters.some(param => param.name === name)) {
-                                vscode.postMessage({
-                                    command: 'error',
-                                    message: "A parameter with the name \'" + name + "\' already exists. Please use a unique name."
-                                });
-                                return;
-                            }
                             if (!isValidType(type, value)) {
                                 vscode.postMessage({
                                     command: 'error',
@@ -215,7 +208,22 @@ export class TestCaseWebviewProvider {
                                 value = value.toLowerCase();
                                 console.log(value);
                             }
-                            parameters.push({ name, type, value });
+                            const existingParam = parameters.find(param => param.name === name);
+                            if (existingParam) {
+                                if (type !== existingParam.type) {
+                                    vscode.postMessage({
+                                        command: 'error',
+                                        message: 'Type mismatch for the parameter. Please ensure the type is consistent.'
+                                    });
+                                    return;
+                                }
+                                if (!Array.isArray(existingParam.value)) {
+                                    existingParam.value = [existingParam.value]; // Convert the value to an array if it's not already
+                                }
+                                existingParam.value.push(value);
+                            }else{
+                                parameters.push({ name, type, value: [value] });
+                            }
                             updateParametersList();
                             document.getElementById('parameterName').value = '';
                             document.getElementById('parameterValue').value = '';
