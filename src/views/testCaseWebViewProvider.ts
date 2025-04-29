@@ -232,6 +232,22 @@ export class TestCaseWebviewProvider {
                             }else{
                                 parameters.push({ name, type, value: [value] });
                             }
+                            const existingParam = parameters.find(param => param.name === name);
+                            if (existingParam) {
+                                if (type !== existingParam.type) {
+                                    vscode.postMessage({
+                                        command: 'error',
+                                        message: 'Type mismatch for the parameter. Please ensure the type is consistent.'
+                                    });
+                                    return;
+                                }
+                                if (!Array.isArray(existingParam.value)) {
+                                    existingParam.value = [existingParam.value]; // Convert the value to an array if it's not already
+                                }
+                                existingParam.value.push(value);
+                            }else{
+                                parameters.push({ name, type, value: [value] });
+                            }
                             updateParametersList();
                             document.getElementById('parameterName').value = '';
                             document.getElementById('parameterValue').value = '';
