@@ -214,24 +214,7 @@ export function activate(context: vscode.ExtensionContext) {
 			const tempPath = path.join(tempDir, fileName);
 			fs.writeFileSync(tempPath, reqifContent, 'utf-8');
 	
-			const process = spawn('typhoon_testgen', [tempPath, outputDir]);
-	
-			let output = '';
-			let error = '';
-	
-			process.stdout.on('data', (data) => {
-				output += data.toString();
-			});
-			process.stderr.on('data', (data) => {
-				error += data.toString();
-			});
-			process.on('close', (code) => {
-				if (code === 0) {
-					vscode.window.showInformationMessage('Tests generated successfully!');
-				} else {
-					vscode.window.showErrorMessage(`Test generation failed: ${error || output}`);
-				}
-			});
+			runTestGeneration(tempPath, outputDir);
 	
 		} catch (err: any) {
 			vscode.window.showErrorMessage(`Unexpected error during test generation: ${err.message}`);
@@ -245,16 +228,23 @@ export function deactivate() {}
 
 
 function runTestGeneration(reqifPath: string, outputPath: string) {
-    const command = `typhoon_testgen "${reqifPath}" "${outputPath}"`;
-	console.log(command);
+    const process = spawn('typhoon_testgen', [reqifPath, outputPath]);
+	let output = '';
+	let error = '';
 
-    exec(command, (error, stdout, stderr) => {
-        if (error) {
-            vscode.window.showErrorMessage(`Error: ${stderr || error.message}`);
-            return;
-        }
-        vscode.window.showInformationMessage(`Test generation successful:\n${stdout}`);
-    });
+	process.stdout.on('data', (data) => {
+		output += data.toString();
+	});
+	process.stderr.on('data', (data) => {
+		error += data.toString();
+	});
+	process.on('close', (code) => {
+		if (code === 0) {
+			vscode.window.showInformationMessage('Tests generated successfully!');
+		} else {
+			vscode.window.showErrorMessage(`Test generation failed: ${error || output}`);
+		}
+	});
 }
 
 
