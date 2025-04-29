@@ -116,6 +116,22 @@
           "light": "media/light/edit.svg",
           "dark": "media/dark/edit.svg"
         }
+      },
+      {
+        "command": "typhoon-requirement-tool.generateTestsFromReqif",
+        "title": "Generate Test Files From reqIF file",
+        "icon": {
+          "light": "media/light/edit.svg",
+          "dark": "media/dark/edit.svg"
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.generateTests",
+        "title": "Generate Test Files",
+        "icon": {
+          "light": "media/light/codesandbox.svg",
+          "dark": "media/dark/codesandbox.svg"
+        }
       }
     ],
     "viewsContainers": {
@@ -183,6 +199,11 @@
         {
           "command": "typhoon-requirement-tool.addRequirement",
           "when": "view == typhoon-requirement-tool.tree",
+          "group": "navigation"
+        },
+        {
+          "command": "typhoon-requirement-tool.generateTests",
+          "when": "view == typhoon-requirement-tool.tree && typhoon-requirement-tool.hasRequirements",
           "group": "navigation"
         },
         {
