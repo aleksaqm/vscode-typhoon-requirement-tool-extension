@@ -23,6 +23,6 @@ export class TestCase extends TreeNode{
 }
 
 export class Parameter{
-    constructor(public name: string, public type: string, public value: any){
+    constructor(public name: string, public type: string, public value: any[]){
     }
 }
