@@ -4,6 +4,7 @@ import { TestCase } from "../models/testCase";
 import { TreeNode } from "../models/treeNode";
 import * as xml2js from "xml2js";
 import { TestNode } from "../models/test";
+import { getUniqueId } from "./idGenerator";
 
 export class ReqifFileManager{
     public static exportToReqIF(nodes: TreeNode[]): string {
@@ -21,7 +22,8 @@ export class ReqifFileManager{
             header.ele('REQ-IF-TOOL-ID', 'Typhoon Requirement Tool');
             header.ele('REQ-IF-VERSION', '1.0');
             header.ele('SOURCE-TOOL-ID', 'Typhoon Requirement Tool');
-            header.ele('TITLE', 'Exported Requirements');
+            header.ele('TITLE', 'Exported Requirements');   
+            header.ele('PROJECT-ID', getUniqueId());                                    //maybe we need to have this saved somewhere but for now we won't
         
             const coreContent = root.ele('CORE-CONTENT').ele('REQ-IF-CONTENT');
         
