@@ -7,6 +7,10 @@ import { TestCase } from './models/testCase';
 import { DetailsViewProvider } from './views/detailsViewProvider';
 import { TabularViewProvider } from './views/tabularViewProvider';
 import { ReqifFileManager } from './utils/reqifFileManager';
+import { exec, spawn } from 'child_process';
+import * as os from 'os';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -166,9 +170,82 @@ export function activate(context: vscode.ExtensionContext) {
 		TabularViewProvider.show(requirementDataProvider);
 	}));
 
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.generateTestsFromReqif', async () => {
+		const openUri = await vscode.window.showOpenDialog({
+			filters: { 'ReqIF Files': ['reqif'] },
+			canSelectMany: false,
+		});
+
+		if (!openUri || openUri.length === 0) {
+			vscode.window.showErrorMessage('Import cancelled. No file selected.');
+			return;
+		}
+
+		const outputFolder = await vscode.window.showOpenDialog({ canSelectFolders: true, canSelectFiles: false });
+		if (!outputFolder || outputFolder.length === 0) {
+			vscode.window.showErrorMessage('No output folder selected.');
+			return;
+		}
+		const reqifPath = openUri[0].fsPath;
+		const outputPath = outputFolder[0].fsPath;
+
+		runTestGeneration(reqifPath, outputPath);
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.generateTests', async () => {
+		try {
+			if (requirementDataProvider.isEmpty()){
+				vscode.window.showErrorMessage("No requirement data");
+				return;
+			}
+			const folderUri = await vscode.window.showOpenDialog({
+				canSelectFolders: true,
+				openLabel: 'Select folder to generate tests',
+			});
+			if (!folderUri || folderUri.length === 0) {
+				vscode.window.showWarningMessage('Test generation cancelled: No folder selected.');
+				return;
+			}
+			const outputDir = folderUri[0].fsPath;
+
+			const reqifContent = ReqifFileManager.exportToReqIF(requirementDataProvider.getAllNodes());
+			const tempDir = os.tmpdir();
+			const fileName = `temp_${Date.now()}.reqif`;
+			const tempPath = path.join(tempDir, fileName);
+			fs.writeFileSync(tempPath, reqifContent, 'utf-8');
+	
+			runTestGeneration(tempPath, outputDir);
+	
+		} catch (err: any) {
+			vscode.window.showErrorMessage(`Unexpected error during test generation: ${err.message}`);
+		}
+
+	}));
+
 }
 
 export function deactivate() {}
+
+
+function runTestGeneration(reqifPath: string, outputPath: string) {
+    const process = spawn('typhoon_testgen', [reqifPath, outputPath]);
+	let output = '';
+	let error = '';
+
+	process.stdout.on('data', (data) => {
+		output += data.toString();
+	});
+	process.stderr.on('data', (data) => {
+		error += data.toString();
+	});
+	process.on('close', (code) => {
+		if (code === 0) {
+			vscode.window.showInformationMessage('Tests generated successfully!');
+		} else {
+			vscode.window.showErrorMessage(`Test generation failed: ${error || output}`);
+		}
+	});
+}
 
 
 

@@ -76,6 +76,10 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         }
     }
 
+    isEmpty(): boolean{
+        return (this.requirements.length === 0);
+    }
+
     private getIconForRequirement(requirement: Requirement): vscode.ThemeIcon | { light: vscode.Uri; dark: vscode.Uri } {
         switch (requirement.status) {
             case "Draft":
