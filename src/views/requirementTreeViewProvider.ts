@@ -15,6 +15,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
 
     private requirements: TreeNode[] = [];
     private detailsViewProvider?: DetailsViewProvider;
+    private selectedNode: TreeNode | null = null;
 
     constructor(detailsViewProvider?: DetailsViewProvider) {
         this.detailsViewProvider = detailsViewProvider;
@@ -71,8 +72,16 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
     }
 
     onNodeSelected(node: TreeNode | null): void {
+        this.selectedNode = node;
         if (this.detailsViewProvider) {
             this.detailsViewProvider.updateDetails(node);
+        }
+    }
+
+    clearSelection(): void {
+        this.selectedNode = null;
+        if (this.detailsViewProvider) {
+            this.detailsViewProvider.updateDetails(null);
         }
     }
 
@@ -97,11 +106,11 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         }
     }
 
-    async addRequirement(parent: TreeNode | null = null): Promise<void> {
+    async addRequirement(): Promise<void> {
         RequirementWebviewProvider.show(undefined, (requirement: Requirement) => {
-            if (parent) {
-                parent.children.push(requirement);
-                requirement.parent = parent;
+            if (this.selectedNode) {
+                this.selectedNode.children.push(requirement);
+                requirement.parent = this.selectedNode;
             }
             this.requirements.push(requirement);
             this.refresh();

@@ -30,7 +30,9 @@ export function activate(context: vscode.ExtensionContext) {
         const selectedNode = event.selection[0];
         if (selectedNode) {
             requirementDataProvider.onNodeSelected(selectedNode);
-        }
+        }else{
+			requirementDataProvider.clearSelection();
+		}
     });
 
     context.subscriptions.push(treeView);
@@ -40,8 +42,8 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.window.showInformationMessage('Hello Qm from Typhoon Requirement Tool!');
 	}));
 
-	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.addRequirement', (node: Requirement) => {
-		requirementDataProvider.addRequirement(node);
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.addRequirement', () => {
+		requirementDataProvider.addRequirement();
 	}));
 
 	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.addTest', (node: TreeNode) => {
