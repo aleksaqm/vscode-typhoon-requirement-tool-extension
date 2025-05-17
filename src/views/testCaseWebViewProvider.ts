@@ -50,6 +50,7 @@ export class TestCaseWebviewProvider {
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>${node ? 'Edit Test Case' : 'Add Test Case'}</title>
+                <script type="module" src="https://unpkg.com/@vscode/webview-ui-toolkit@latest/dist/toolkit.js"></script>
                 <style>
                     body {
                         font-family: Arial;
@@ -59,24 +60,13 @@ export class TestCaseWebviewProvider {
                         display: block;
                         margin-top: 10px;
                     }
-                    input, textarea, select {
+                    vscode-text-field, vscode-text-area, vscode-dropdown {
                         width: 50%;
                         padding: 8px;
                         margin-top: 5px;
                         margin-bottom: 15px;
                         border: 1px solid #ccc;
                         border-radius: 4px;
-                    }
-                    button {
-                        background-color: rgb(151, 70, 29);
-                        color: white;
-                        border: none;
-                        padding: 10px 15px;
-                        border-radius: 4px;
-                        cursor: pointer;
-                    }
-                    button:hover {
-                        background-color: rgb(153, 77, 0);
                     }
                     ul {
                         list-style-type: none;
@@ -90,18 +80,16 @@ export class TestCaseWebviewProvider {
                         align-items: center;
                     }
                     .remove-button {
-                        background-color: red;
-                        color: white;
+                        --button-background: #d32f2f; /* VS Code error red */
+                        --button-background-hover: #b71c1c;
+                        --button-foreground: var(--vscode-button-foreground, #fff);
+                        background-color: var(--button-background) !important;
+                        color: var(--button-foreground) !important;
                         border: none;
-                        padding: 5px 10px;
-                        border-radius: 4px;
                         cursor: pointer;
                     }
                     .remove-button:hover {
-                        background-color: darkred;
-                    }
-                    #submitButton {
-                        background-color: rgb(153, 74, 0);
+                        background-color: var(--button-background-hover) !important;
                     }
                 </style>
             </head>
@@ -109,10 +97,10 @@ export class TestCaseWebviewProvider {
                 <h2>${node ? 'Edit Test Case' : 'Add Test Case'}</h2>
                 <form id="testCaseForm">
                     <label for="name">Test Case Name:</label>
-                    <input type="text" id="name" name="name" value="${name}" placeholder="Enter test case name" required />
+                    <vscode-text-field id="name" name="name" value="${name}" placeholder="Enter test case name" required></vscode-text-field>
     
                     <label for="scenario">Scenario:</label>
-                    <textarea id="scenario" name="scenario" placeholder="Enter test case scenario" rows="3" required>${scenario}</textarea>
+                    <vscode-text-area id="scenario" name="scenario" placeholder="Enter test case scenario" rows="3" required>${scenario}</vscode-text-area>
     
                     ${this.getDynamicListHtml('steps', 'Steps', steps)}
                     ${this.getDynamicListHtml('prerequisites', 'Prerequisites', prerequisites)}
@@ -121,30 +109,30 @@ export class TestCaseWebviewProvider {
                     <br>
                     <label for="parameters">Parameters:</label>
                     <div id="parametersSection">
-                        <input type="text" id="parameterName" placeholder="Parameter Name" />
-                        <select id="parameterType">
-                            <option value="string">String</option>
-                            <option value="int">Integer</option>
-                            <option value="float">Float</option>
-                            <option value="bool">Boolean</option>
-                            <option value="array">Array</option>
-                        </select>
-                        <input type="text" id="parameterValue" placeholder="Parameter Value" />
-                        <button type="button" id="addParameterButton">Add Parameter</button>
+                        <vscode-text-field id="parameterName" placeholder="Parameter Name"></vscode-text-field>
+                        <vscode-dropdown id="parameterType">
+                            <vscode-option value="string">String</vscode-option>
+                            <vscode-option value="int">Integer</vscode-option>
+                            <vscode-option value="float">Float</vscode-option>
+                            <vscode-option value="bool">Boolean</vscode-option>
+                            <vscode-option value="array">Array</vscode-option>
+                        </vscode-dropdown>
+                        <vscode-text-field id="parameterValue" placeholder="Parameter Value"></vscode-text-field>
+                        <vscode-button id="addParameterButton">Add Parameter</vscode-button>
                         <ul id="parametersList">
                             ${parameters
                                 .map(
                                     (param, index) => `
                                     <li>
                                         ${param.name} -> ${param.value} : ${param.type}
-                                        <button type="button" class="remove-button" onclick="removeParameter(${index})">Remove</button>
+                                        <vscode-button class="remove-button">Remove</vscode-button>
                                     </li>
                                 `
                                 )
                                 .join('')}
                         </ul>
                     </div>
-                    <button type="button" id="submitButton">${node ? 'Save Changes' : 'Submit'}</button>
+                    <vscode-button id="submitButton">${node ? 'Save Changes' : 'Submit'}</vscode-button>
                 </form>
     
                 <script>
@@ -190,6 +178,11 @@ export class TestCaseWebviewProvider {
                     Object.keys(lists).forEach(updateList);
 
                     const parameters = ${JSON.stringify(parameters)};
+
+                    ['steps', 'prerequisites', 'testData', 'expectedResults'].forEach(listName => {
+                        document.getElementById(\`add\${listName}Button\`)
+                            .addEventListener('click', () => addItem(listName));
+                    });
 
                     document.getElementById('addParameterButton').addEventListener('click', () => {
                         const name = document.getElementById('parameterName').value.trim();
@@ -317,7 +310,7 @@ export class TestCaseWebviewProvider {
                 (item, index) => `
                 <li>
                     ${item}
-                    <button type="button" class="remove-button" onclick="removeItem('${listName}', ${index})">Remove</button>
+                    <vscode-button class="remove-button" ${index})">Remove</vscode-button>
                 </li>
             `
             )
@@ -325,8 +318,8 @@ export class TestCaseWebviewProvider {
     
         return `
             <label for="${listName}">${label}:</label>
-            <input type="text" id="${listName}Input" placeholder="Enter ${label.toLowerCase()}" />
-            <button type="button" onclick="addItem('${listName}')">Add ${label}</button>
+            <vscode-text-field id="${listName}Input" placeholder="Enter ${label.toLowerCase()}" ></vscode-text-field>
+            <vscode-button id="add${listName}Button">Add ${label}</vscode-button>
             <ul id="${listName}List">${listItems}</ul>
         `;
     }

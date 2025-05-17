@@ -36,58 +36,42 @@ export class TestWebviewProvider{
 
     private static getHtml(node: TestNode | undefined): string {
         const name = node ? node.label : '';
-        const description = node && node.description ? node.description : '';
+        const description = node?.description ?? '';
         return `
             <!DOCTYPE html>
             <html lang="en">
             <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <meta charset="UTF-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
                 <title>${node ? 'Edit Test' : 'Add Test'}</title>
+                <script type="module" src="https://unpkg.com/@vscode/webview-ui-toolkit@1.0.0/dist/toolkit.min.js"></script>
                 <style>
                     body {
-                        font-family: Arial, sans-serif;
+                        font-family: var(--vscode-font-family);
                         padding: 20px;
+                        color: var(--vscode-foreground);
+                        background-color: var(--vscode-editor-background);
                     }
-                    label {
-                        display: block;
+                    vscode-text-field, vscode-text-area {
+                        margin-bottom: 20px;
+                        width: 100%;
+                    }
+                    vscode-button {
                         margin-top: 10px;
                     }
-                    input, textarea {
-                        width: 50%;
-                        padding: 8px;
-                        margin-top: 5px;
-                        margin-bottom: 15px;
-                        border: 1px solid #ccc;
-                        border-radius: 4px;
-                    }
-                    button {
-                        background-color:rgb(204, 78, 0);
-                        display: block;
-                        color: white;
-                        border: none;
-                        padding: 10px 15px;
-                        border-radius: 4px;
-                        cursor: pointer;
-                    }
-                    button:hover {
-                        background-color:rgb(153, 74, 0);
+                    h2 {
+                        color: var(--vscode-editor-foreground);
                     }
                 </style>
             </head>
             <body>
                 <h2>${node ? 'Edit Test' : 'Add Test'}</h2>
                 <form id="testForm">
-                    <label for="name">Test Name:</label>
-                    <input type="text" id="name" name="name" value="${name}" required />
-    
-                    <label for="description">Test Description:</label>
-                    <textarea id="description" name="description" rows="4" required>${description}</textarea>
-    
-                    <button type="button" id="submitButton">${node ? 'Save Changes' : 'Submit'}</button>
-                
+                    <vscode-text-field id="name" value="${name}" required>Test Name</vscode-text-field>
+                    <vscode-text-area id="description" value="${description}" rows="4" required>Test Description</vscode-text-area>
+                    <vscode-button id="submitButton" appearance="primary">${node ? 'Save Changes' : 'Submit'}</vscode-button>
                 </form>
-    
+
                 <script>
                     const vscode = acquireVsCodeApi();
                     document.getElementById('submitButton').addEventListener('click', () => {
@@ -103,4 +87,5 @@ export class TestWebviewProvider{
             </html>
         `;
     }
+
 }
