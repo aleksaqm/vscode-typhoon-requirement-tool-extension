@@ -760,6 +760,7 @@ export class TabularViewProvider {
                             if (nameText) {
                                 nameText.textContent = newValue;
                             }
+                            cell.innerHTML = \`\${node.children && node.children.length > 0 ? '<span class="expandable" data-loaded="false">[+]</span>' : ''}<span class="name-text">\${newValue}</span>\`;
                         }
                         else if (['steps', 'prerequisites', 'testData', 'expectedResults', 'parameters'].includes(field)) {
                             // Update the cell content with the joined array
