@@ -211,12 +211,11 @@ export function activate(context: vscode.ExtensionContext) {
 			const outputDir = folderUri[0].fsPath;
 
 			const reqifContent = ReqifFileManager.exportToReqIF(requirementDataProvider.getAllNodes());
-			const tempDir = os.tmpdir();
-			const fileName = `temp_${Date.now()}.reqif`;
-			const tempPath = path.join(tempDir, fileName);
-			fs.writeFileSync(tempPath, reqifContent, 'utf-8');
+			const fileName = `requirements_${Date.now()}.reqif`;
+			const reqifPath = path.join(outputDir, fileName);
+			fs.writeFileSync(reqifPath, reqifContent, 'utf-8');
 	
-			runTestGeneration(tempPath, outputDir);
+			runTestGeneration(reqifPath, outputDir);
 	
 		} catch (err: any) {
 			vscode.window.showErrorMessage(`Unexpected error during test generation: ${err.message}`);
