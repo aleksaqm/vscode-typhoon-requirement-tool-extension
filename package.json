@@ -113,8 +113,8 @@
         "command": "typhoon-requirement-tool.openTabularView",
         "title": "Open Tabular View",
         "icon": {
-          "light": "media/light/edit.svg",
-          "dark": "media/dark/edit.svg"
+          "light": "media/light/table.svg",
+          "dark": "media/dark/table.svg"
         }
       },
       {
@@ -129,8 +129,8 @@
         "command": "typhoon-requirement-tool.generateTests",
         "title": "Generate Test Files",
         "icon": {
-          "light": "media/light/codesandbox.svg",
-          "dark": "media/dark/codesandbox.svg"
+          "light": "media/light/play-circle.svg",
+          "dark": "media/dark/play-circle.svg"
         }
       }
     ],
@@ -139,7 +139,7 @@
         {
           "id": "typhoon-requirements-tree",
           "title": "Typhoon Requirement Tool",
-          "icon": "media/api-wizard.svg"
+          "icon": "media/tree-structure.svg"
         }
       ]
     },
@@ -203,6 +203,11 @@
         },
         {
           "command": "typhoon-requirement-tool.generateTests",
+          "when": "view == typhoon-requirement-tool.tree && typhoon-requirement-tool.hasRequirements",
+          "group": "navigation"
+        },
+        {
+          "command": "typhoon-requirement-tool.openTabularView",
           "when": "view == typhoon-requirement-tool.tree && typhoon-requirement-tool.hasRequirements",
           "group": "navigation"
         },
