@@ -239,14 +239,14 @@ export class TabularViewProvider {
                         padding: 5px;
                         font-size: 14px;
                     }
-                    #parametersModal {
+                    #parametersModal,
+                    #arrayModal {
                         position: fixed;
                         top: 0;
                         left: 0;
-                        width: 100%;
-                        height: 100%;
-                        background-color: rgba(0, 0, 0, 0.5);
-                        color: black;
+                        width: 100vw;
+                        height: 100vh;
+                        background: rgba(30, 30, 30, 0.4); /* VS Code overlay style */
                         display: flex;
                         justify-content: center;
                         align-items: center;
@@ -254,56 +254,112 @@ export class TabularViewProvider {
                     }
 
                     .modal-content {
-                        background-color: white;
-                        padding: 20px;
-                        border-radius: 5px;
-                        text-align: center;
-                        width: 90%; /* Adjust width to fit within the window */
-                        max-width: 600px; /* Limit the maximum width */
-                        overflow-x: auto; /* Add horizontal scrolling if needed */
+                        background: var(--vscode-editorWidget-background, #1e1e1e);
+                        color: var(--vscode-editorWidget-foreground, #cccccc);
+                        border: 1px solid var(--vscode-editorWidget-border, #454545);
+                        border-radius: 8px;
+                        box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+                        padding: 24px 32px;
+                        min-width: 320px;
+                        max-width: 600px;
+                        width: 90vw;
+                        font-family: var(--vscode-font-family, "Segoe WPC", "Segoe UI", sans-serif);
+                    }
+
+                    #arrayModal .modal-content {
+                        max-width: 400px;
+                        min-width: 0;
+                        width: auto;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        box-sizing: border-box;
+                    }
+
+                    #arrayItemsList,
+                    #newArrayItem {
+                        width: 100%;
+                        max-width: 340px;
+                    }
+
+                    .modal-content h2 {
+                        margin-top: 0;
+                        font-size: 1.3em;
+                        color: var(--vscode-editorWidget-foreground, #cccccc);
+                        font-weight: 500;
+                    }
+
+                    #parametersTable, #parametersTable th, #parametersTable td {
+                        border: 1px solid var(--vscode-editorWidget-border, #454545);
+                        background: transparent;
+                        color: inherit;
                     }
 
                     #parametersTable {
-                        width: 100%; /* Ensure the table takes up the full width of the modal */
+                        width: 100%;
                         border-collapse: collapse;
+                        margin-bottom: 16px;
                     }
 
                     #parametersTable th, #parametersTable td {
-                        border: 1px solid #ccc;
                         padding: 8px;
-                        text-align: left;
+                        font-size: 1em;
                     }
 
-                    #arrayModal {
-                        position: fixed;
-                        top: 0;
-                        left: 0;
+                    #parametersTable input, #parametersTable select {
                         width: 100%;
-                        height: 100%;
-                        background-color: rgba(0, 0, 0, 0.5);
-                        color: black;
+                        background: var(--vscode-input-background, #1e1e1e);
+                        color: var(--vscode-input-foreground, #cccccc);
+                        border: 1px solid var(--vscode-input-border, #454545);
+                        border-radius: 4px;
+                        padding: 4px 6px;
+                        font-size: 1em;
+                    }
+
+                    button, .modal-content button {
+                        background: var(--vscode-button-background, #0e639c);
+                        color: var(--vscode-button-foreground, #fff);
+                        border: 1px solid var(--vscode-button-border, #0e639c);
+                        border-radius: 4px;
+                        padding: 6px 16px;
+                        margin: 4px 2px;
+                        font-size: 1em;
+                        cursor: pointer;
+                        transition: background 0.2s;
+                    }
+
+                    .array-modal-buttons {
                         display: flex;
-                        justify-content: center;
-                        align-items: center;
-                        z-index: 1000;
+                        allign-items: center;
+                        gap: 8px;
+                        width: 100%;
+                        justify-content: flex-start;
+                        margin-top: 8px;
                     }
 
-                    #arrayItemsList {
-                        list-style-type: none;
-                        padding: 0;
-                        margin-bottom: 10px;
+                    button:hover, .modal-content button:hover {
+                        background: var(--vscode-button-hoverBackground, #1177bb);
                     }
 
-                    #arrayItemsList li {
-                        display: flex;
-                        justify-content: space-between;
-                        margin-bottom: 5px;
+                    button:active, .modal-content button:active {
+                        background: var(--vscode-button-background, #0e639c);
+                        opacity: 0.9;
                     }
 
-                    #arrayItemsList li input {
-                        flex: 1;
-                        margin-right: 5px;
+                    button.delete-parameter, button.delete-array-item {
+                        background: var(--vscode-button-secondaryBackground, #b52020);
+                        color: var(--vscode-button-secondaryForeground, #fff);
+                        border: 1px solid var(--vscode-button-secondaryBorder, #b52020);
                     }
+
+                    button.delete-parameter:hover, button.delete-array-item:hover {
+                        background: #e06c75;
+                    }
+
+                    input:focus, select:focus {
+                        outline: 1.5px solid var(--vscode-focusBorder, #007fd4);
+                    }
+
                     .hidden {
                         display: none !important;
                     }
@@ -364,9 +420,11 @@ export class TabularViewProvider {
                             <!-- Array items will be dynamically added here -->
                         </ul>
                         <input type="text" id="newArrayItem" placeholder="Add new item" />
-                        <button id="addArrayItem">Add</button>
-                        <button id="saveArrayItems">Save</button>
-                        <button id="cancelArrayItems">Cancel</button>
+                        <div class="array-modal-buttons">
+                            <button id="addArrayItem">Add</button>
+                            <button id="saveArrayItems">Save</button>
+                            <button id="cancelArrayItems">Cancel</button>
+                        </div>
                     </div>
                 </div>
                 <script>
@@ -544,7 +602,34 @@ export class TabularViewProvider {
                             saveButton.style.backgroundColor = '#4CAF50'; // Revert to original color
                         });
                         saveButton.addEventListener('click', () => saveNewNode(newRow, type, parentId));
+
+
+                        const cancelButton = document.createElement('button');
+                        cancelButton.textContent = 'Cancel';
+                        cancelButton.className = 'cancel-button';
+                        cancelButton.style.padding = '5px 10px';
+                        cancelButton.style.backgroundColor = '#b52020';
+                        cancelButton.style.color = 'white';
+                        cancelButton.style.border = 'none';
+                        cancelButton.style.borderRadius = '4px';
+                        cancelButton.style.cursor = 'pointer';
+                        cancelButton.style.marginLeft = '8px';
+
+                        cancelButton.addEventListener('mouseover', () => {
+                            cancelButton.style.backgroundColor = '#e06c75';
+                        });
+                        cancelButton.addEventListener('mouseout', () => {
+                            cancelButton.style.backgroundColor = '#b52020';
+                        });
+                        cancelButton.addEventListener('click', () => {
+                            newRow.remove();
+                        });
+
+                        // Add both buttons to the row
                         newRow.appendChild(saveButton);
+                        newRow.appendChild(cancelButton);
+
+
                     }
 
                     function saveNewNode(row, type, parentId) {
@@ -885,25 +970,24 @@ export class TabularViewProvider {
                     }
 
                     function isValidType(type, value) {
-                        console.log(type, value);
+                        const values = typeof value === 'string' ? value.split(',').map(v => v.trim()) : [value];
                         switch (type) {
                             case 'int':
-                                return Number.isInteger(Number(value)); // Checks if the value is an integer
+                                return values.every(v => v === '' || Number.isInteger(Number(v)));
                             case 'float':
-                                return !isNaN(value) && Number(value) === parseFloat(value); // Checks if the value is a float
+                                return values.every(v => v === '' || (!isNaN(v) && Number(v) === parseFloat(v)));
                             case 'bool':
-                                return value.toLowerCase() === 'true' || value.toLowerCase() === 'false'; // Matches "true" or "false" (case-insensitive)
+                                return values.every(v => v === '' || v.toLowerCase() === 'true' || v.toLowerCase() === 'false');
                             case 'string':
-                                return typeof value === 'string'; // Always true for strings
+                                return true; // Always valid
                             case 'array':
                                 try {
-                                    const parsed = JSON.parse(value);
-                                    return Array.isArray(parsed); // Checks if the value is a valid JSON array
+                                    return values.every(v => v === '' || Array.isArray(JSON.parse(v)));
                                 } catch {
                                     return false;
                                 }
                             default:
-                                return false; // Invalid type
+                                return false;
                         }
                     }
 
