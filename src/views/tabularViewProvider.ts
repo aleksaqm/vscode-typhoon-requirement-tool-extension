@@ -382,6 +382,7 @@ export class TabularViewProvider {
                 <table>
                     <thead>
                         <tr>
+                            <th></th>
                             <th>Name</th>
                             <th>Description</th>
                             <th>Type</th>
@@ -445,7 +446,9 @@ export class TabularViewProvider {
                             <tr data-id="\${node.id}" data-parent-id="\${parentId}" class="\${parentId ? 'hidden' : ''}">
                                 <td>
                                     \${hasChildren ? '<span class="expandable" data-loaded="false">[+]</span>' : ''}
-                                    <span class="name-text">\${node.label}</span>
+                                </td>
+                                <td>
+                                    \${node.label || ''}
                                 </td>
                                 <td>\${node.description || ''}</td>
                                 <td>\${node.contextValue || ''}</td>
@@ -758,14 +761,14 @@ export class TabularViewProvider {
                         const rowType = row.children[2].textContent.trim().toLowerCase();
 
                         const editableColumns = {
-                            0: 'label', // Name column
-                            1: 'description', // Description column
-                            3: 'priority', // Priority column
-                            4: 'status', // Status column
-                            5: 'steps', // Steps column
-                            6: 'prerequisites', // Prerequisites column
-                            7: 'testData', // Test Data column
-                            8: 'expectedResults', // Expected Results column
+                            1: 'label', // Name column
+                            2: 'description', // Description column
+                            4: 'priority', // Priority column
+                            5: 'status', // Status column
+                            6: 'steps', // Steps column
+                            7: 'prerequisites', // Prerequisites column
+                            8: 'testData', // Test Data column
+                            9: 'expectedResults', // Expected Results column
                             // 9: 'parameters', // Parameters column
                         };
 
@@ -845,15 +848,8 @@ export class TabularViewProvider {
                         } else {
                             node[field] = newValue;
                         }
-
-                        if (field === 'label') {
-                            const nameText = cell.querySelector('.name-text');
-                            if (nameText) {
-                                nameText.textContent = newValue;
-                            }
-                            cell.innerHTML = \`\${node.children && node.children.length > 0 ? '<span class="expandable" data-loaded="false">[+]</span>' : ''}<span class="name-text">\${newValue}</span>\`;
-                        }
-                        else if (['steps', 'prerequisites', 'testData', 'expectedResults', 'parameters'].includes(field)) {
+                            
+                        if (['steps', 'prerequisites', 'testData', 'expectedResults', 'parameters'].includes(field)) {
                             // Update the cell content with the joined array
                             cell.textContent = Array.isArray(node[field]) ? node[field].join(', ') : '';
                         }
