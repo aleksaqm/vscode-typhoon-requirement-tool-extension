@@ -37,7 +37,7 @@ export class RequirementWebviewProvider {
         const description = node && node.description ? node.description : '';
         const priority = node ? node.priority : 'Medium';
         const status = node ? node.status : 'Draft';
-    
+
         return `
             <!DOCTYPE html>
             <html lang="en">
@@ -45,72 +45,61 @@ export class RequirementWebviewProvider {
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>${node ? 'Edit Requirement' : 'Add Requirement'}</title>
+                <script type="module" src="https://unpkg.com/@vscode/webview-ui-toolkit/dist/toolkit.min.js"></script>
                 <style>
                     body {
-                        font-family: Arial, sans-serif;
+                        font-family: var(--vscode-font-family);
+                        color: var(--vscode-foreground);
+                        background-color: var(--vscode-editor-background);
                         padding: 20px;
                     }
-                    label {
-                        display: block;
-                        margin-top: 10px;
+                    form {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 16px;
+                        width: 60%;
                     }
-                    input, textarea, select {
-                        width: 50%;
-                        padding: 8px;
-                        margin-top: 5px;
-                        margin-bottom: 15px;
-                        border: 1px solid #ccc;
-                        border-radius: 4px;
-                    }
-                    button {
-                        background-color: rgb(204, 78, 0);
-                        display: block;
-                        color: white;
-                        border: none;
-                        padding: 10px 15px;
-                        border-radius: 4px;
-                        cursor: pointer;
-                    }
-                    button:hover {
-                        background-color: rgb(153, 74, 0);
+                    vscode-button {
+                        align-self: flex-start;
                     }
                 </style>
             </head>
             <body>
                 <h2>${node ? 'Edit Requirement' : 'Add Requirement'}</h2>
                 <form id="requirementForm">
-                    <label for="name">Requirement Name:</label>
-                    <input type="text" id="name" name="name" value="${name}" required />
-    
-                    <label for="description">Requirement Description:</label>
-                    <textarea id="description" name="description" rows="4" required>${description}</textarea>
-    
-                    <label for="priority">Priority:</label>
-                    <select id="priority" name="priority" required>
-                        <option value="High" ${priority === 'High' ? 'selected' : ''}>High</option>
-                        <option value="Medium" ${priority === 'Medium' ? 'selected' : ''}>Medium</option>
-                        <option value="Low" ${priority === 'Low' ? 'selected' : ''}>Low</option>
-                    </select>
-    
-                    <label for="status">Status:</label>
-                    <select id="status" name="status" required>
-                        <option value="Draft" ${status === 'Draft' ? 'selected' : ''}>Draft</option>
-                        <option value="Ready" ${status === 'Ready' ? 'selected' : ''}>Ready</option>
-                        <option value="Reviewed" ${status === 'Reviewed' ? 'selected' : ''}>Reviewed</option>
-                        <option value="Approved" ${status === 'Approved' ? 'selected' : ''}>Approved</option>
-                        <option value="Released" ${status === 'Released' ? 'selected' : ''}>Released</option>
-                    </select>
-    
-                    <button type="button" id="submitButton">${node ? 'Save Changes' : 'Submit'}</button>
+                    <vscode-text-field id="name" value="${name}" required>Requirement Name</vscode-text-field>
+
+                    <vscode-text-area id="description" value="${description}" rows="4" resize="vertical" required>
+                        Requirement Description
+                    </vscode-text-area>
+
+                    <vscode-dropdown id="priority">
+                        <vscode-option value="High" ${priority === 'High' ? 'selected' : ''}>High</vscode-option>
+                        <vscode-option value="Medium" ${priority === 'Medium' ? 'selected' : ''}>Medium</vscode-option>
+                        <vscode-option value="Low" ${priority === 'Low' ? 'selected' : ''}>Low</vscode-option>
+                    </vscode-dropdown>
+
+                    <vscode-dropdown id="status">
+                        <vscode-option value="Draft" ${status === 'Draft' ? 'selected' : ''}>Draft</vscode-option>
+                        <vscode-option value="Ready" ${status === 'Ready' ? 'selected' : ''}>Ready</vscode-option>
+                        <vscode-option value="Reviewed" ${status === 'Reviewed' ? 'selected' : ''}>Reviewed</vscode-option>
+                        <vscode-option value="Approved" ${status === 'Approved' ? 'selected' : ''}>Approved</vscode-option>
+                        <vscode-option value="Released" ${status === 'Released' ? 'selected' : ''}>Released</vscode-option>
+                    </vscode-dropdown>
+
+                    <vscode-button id="submitButton" type="button" appearance="primary">
+                        ${node ? 'Save Changes' : 'Submit'}
+                    </vscode-button>
                 </form>
-    
+
                 <script>
                     const vscode = acquireVsCodeApi();
                     document.getElementById('submitButton').addEventListener('click', () => {
-                        const name = document.getElementById('name').value;
-                        const description = document.getElementById('description').value;
+                        const name = document.getElementById('name').value.trim();
+                        const description = document.getElementById('description').value.trim();
                         const priority = document.getElementById('priority').value;
                         const status = document.getElementById('status').value;
+
                         vscode.postMessage({
                             command: 'submit',
                             data: { name, description, priority, status }

@@ -30,7 +30,9 @@ export function activate(context: vscode.ExtensionContext) {
         const selectedNode = event.selection[0];
         if (selectedNode) {
             requirementDataProvider.onNodeSelected(selectedNode);
-        }
+        }else{
+			requirementDataProvider.clearSelection();
+		}
     });
 
     context.subscriptions.push(treeView);
@@ -40,8 +42,8 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.window.showInformationMessage('Hello Qm from Typhoon Requirement Tool!');
 	}));
 
-	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.addRequirement', (node: Requirement) => {
-		requirementDataProvider.addRequirement(node);
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.addRequirement', () => {
+		requirementDataProvider.addRequirement();
 	}));
 
 	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.addTest', (node: TreeNode) => {
@@ -209,12 +211,11 @@ export function activate(context: vscode.ExtensionContext) {
 			const outputDir = folderUri[0].fsPath;
 
 			const reqifContent = ReqifFileManager.exportToReqIF(requirementDataProvider.getAllNodes());
-			const tempDir = os.tmpdir();
-			const fileName = `temp_${Date.now()}.reqif`;
-			const tempPath = path.join(tempDir, fileName);
-			fs.writeFileSync(tempPath, reqifContent, 'utf-8');
+			const fileName = `requirements_${Date.now()}.reqif`;
+			const reqifPath = path.join(outputDir, fileName);
+			fs.writeFileSync(reqifPath, reqifContent, 'utf-8');
 	
-			runTestGeneration(tempPath, outputDir);
+			runTestGeneration(reqifPath, outputDir);
 	
 		} catch (err: any) {
 			vscode.window.showErrorMessage(`Unexpected error during test generation: ${err.message}`);
