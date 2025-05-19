@@ -179,7 +179,13 @@ export class TabularViewProvider {
     private static updateParameters(id: string, parameters: string): void {
         const node = this.findNodeById(this.requirementDataProvider?.getAllNodes() || [], id);
         if (node instanceof TestCase) {
-            node.parameters = JSON.parse(parameters);
+            console.log(node.parameters);
+            var parsedParameters = JSON.parse(parameters);
+            parsedParameters.forEach((parameter: any) => {
+                parameter.value = parameter.value.split(',').map((item: string) => item.trim());
+            });
+            node.parameters = parsedParameters;
+            console.log(node.parameters);
             this.requirementDataProvider?.refresh();
         }
     }
