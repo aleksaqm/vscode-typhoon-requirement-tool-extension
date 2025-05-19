@@ -100,7 +100,7 @@ export class TestCaseWebviewProvider {
                     <vscode-text-field id="name" name="name" value="${name}" placeholder="Enter test case name" required></vscode-text-field>
     
                     <label for="scenario">Scenario:</label>
-                    <vscode-text-area id="scenario" name="scenario" placeholder="Enter test case scenario" rows="3" required>${scenario}</vscode-text-area>
+                    <vscode-text-area id="scenario" name="scenario" value="${scenario}" placeholder="Enter test case scenario" rows="3" required></vscode-text-area>
     
                     ${this.getDynamicListHtml('steps', 'Steps', steps)}
                     ${this.getDynamicListHtml('prerequisites', 'Prerequisites', prerequisites)}
@@ -125,7 +125,7 @@ export class TestCaseWebviewProvider {
                                     (param, index) => `
                                     <li>
                                         ${param.name} -> ${param.value} : ${param.type}
-                                        <vscode-button class="remove-button">Remove</vscode-button>
+                                        <button id="removeParamButton" class="remove-button">Remove</button>
                                     </li>
                                 `
                                 )
@@ -177,7 +177,7 @@ export class TestCaseWebviewProvider {
                     // Initialize lists with existing values
                     Object.keys(lists).forEach(updateList);
 
-                    const parameters = ${JSON.stringify(parameters)};
+                    const parameters = ${node ? JSON.stringify(parameters) ?? [] : []};
 
                     ['steps', 'prerequisites', 'testData', 'expectedResults'].forEach(listName => {
                         document.getElementById(\`add\${listName}Button\`)
@@ -237,7 +237,12 @@ export class TestCaseWebviewProvider {
                         }
                     });
 
+                    document.getElementById('removeParamButton').addEventListener('click', (e) => {
+                        updateParametersList();
+                    })
+
                     function removeParameter(index) {
+                        console.log("AAAAAAAAAAAAAAAAAAAAAA");
                         parameters.splice(index, 1);
                         updateParametersList();
                     }
@@ -247,13 +252,14 @@ export class TestCaseWebviewProvider {
                         parametersList.innerHTML = '';
                         parameters.forEach((param, index) => {
                             const li = document.createElement('li');
-                            li.textContent = \`\${param.name} : \${param.type} --> \${param.value}\`;
-                            const removeButton = document.createElement('button');
-                            removeButton.textContent = 'Remove';
-                            removeButton.className = 'remove-button';
-                            removeButton.addEventListener('click', () => removeParameter(index));
-                            li.appendChild(removeButton);
+                            li.innerHTML = \`\${param.name} : \${param.type} --> \${param.value} <button class="remove-button" data-index="\${index}">Remove</button>\`;
                             parametersList.appendChild(li);
+                        });
+                        parametersList.querySelectorAll('.remove-button').forEach(btn => {
+                            btn.addEventListener('click', (e) => {
+                                const idx = parseInt(btn.getAttribute('data-index'));
+                                removeParameter(idx);
+                            });
                         });
                     }
 
@@ -298,6 +304,10 @@ export class TestCaseWebviewProvider {
                                 return false; // Invalid type
                         }
                     }
+
+                    document.addEventListener('DOMContentLoaded', () => {
+                        updateParametersList();
+                    });
                 </script>
             </body>
             </html>
