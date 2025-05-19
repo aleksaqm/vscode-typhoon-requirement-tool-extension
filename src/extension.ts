@@ -225,43 +225,47 @@ export function activate(context: vscode.ExtensionContext) {
 	}));
 
 	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.coverageCheck', async () => {
-		const openUri = await vscode.window.showOpenDialog({
-			filters: { 'ReqIF Files': ['reqif'] },
-			canSelectMany: false,
-		});
-
-		if (!openUri || openUri.length === 0) {
-			vscode.window.showErrorMessage('Import cancelled. No file selected.');
-			return;
-		}
-
-		const testFolder = await vscode.window.showOpenDialog({ canSelectFolders: true, canSelectFiles: false, openLabel: "Select folder where test are" });
-		if (!testFolder || testFolder.length === 0) {
-			vscode.window.showErrorMessage('No output folder selected.');
-			return;
-		}
-		// const reqifPath = openUri[0].fsPath;
-		// const testPath = testFolder[0].fsPath;
-
-		const reqifPath = openUri[0].fsPath.replace(/\\/g, '/');
-    	const testPath = testFolder[0].fsPath.replace(/\\/g, '/');
-
-		const process = spawn('coverage_check', [reqifPath, testPath]);
-		let result = '';
-		let error = '';
-
-		process.stdout.on('data', (data) => { result += data.toString(); });
-		process.stderr.on('data', (data) => {
-			error += data.toString();
-		});
-		process.on('close', (code) => {
-			if (code === 0) {
-				const diff = JSON.parse(result);
-				CoverageCheckWebviewProvider.show(diff, requirementDataProvider);
-			} else {
-				vscode.window.showErrorMessage(`Coverage check failed. ${error}`);
+		try {
+			if (requirementDataProvider.isEmpty()){
+				vscode.window.showErrorMessage("No requirement data");
+				return;
 			}
-		});
+			const folderUri = await vscode.window.showOpenDialog({
+				canSelectFolders: true,
+				openLabel: 'Select folder where are tests',
+			});
+			if (!folderUri || folderUri.length === 0) {
+				vscode.window.showWarningMessage('Coverage check cancelled: No folder selected.');
+				return;
+			}
+			const outputDir = folderUri[0].fsPath;
+
+			const reqifContent = ReqifFileManager.exportToReqIF(requirementDataProvider.getAllNodes());
+			const tempDir = os.tmpdir();
+			const fileName = `temp_${Date.now()}.reqif`;
+			const tempPath = path.join(tempDir, fileName);
+			fs.writeFileSync(tempPath, reqifContent, 'utf-8');
+	
+			const process = spawn('coverage_check', [tempPath, outputDir]);
+			let result = '';
+			let error = '';
+
+			process.stdout.on('data', (data) => { result += data.toString(); });
+			process.stderr.on('data', (data) => {
+				error += data.toString();
+			});
+			process.on('close', (code) => {
+				if (code === 0) {
+					const diff = JSON.parse(result);
+					CoverageCheckWebviewProvider.show(diff, requirementDataProvider);
+				} else {
+					vscode.window.showErrorMessage(`Coverage check failed. ${error}`);
+				}
+			});
+	
+		} catch (err: any) {
+			vscode.window.showErrorMessage(`Unexpected error during test generation: ${err.message}`);
+		}
 	}));
 
 }
