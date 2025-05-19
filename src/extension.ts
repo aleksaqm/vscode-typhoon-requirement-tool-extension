@@ -11,6 +11,7 @@ import { exec, spawn } from 'child_process';
 import * as os from 'os';
 import * as fs from 'fs';
 import * as path from 'path';
+import { CoverageCheckWebviewProvider } from './views/coverageCheckWebViewProvider';
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -221,6 +222,46 @@ export function activate(context: vscode.ExtensionContext) {
 			vscode.window.showErrorMessage(`Unexpected error during test generation: ${err.message}`);
 		}
 
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.coverageCheck', async () => {
+		const openUri = await vscode.window.showOpenDialog({
+			filters: { 'ReqIF Files': ['reqif'] },
+			canSelectMany: false,
+		});
+
+		if (!openUri || openUri.length === 0) {
+			vscode.window.showErrorMessage('Import cancelled. No file selected.');
+			return;
+		}
+
+		const testFolder = await vscode.window.showOpenDialog({ canSelectFolders: true, canSelectFiles: false, openLabel: "Select folder where test are" });
+		if (!testFolder || testFolder.length === 0) {
+			vscode.window.showErrorMessage('No output folder selected.');
+			return;
+		}
+		// const reqifPath = openUri[0].fsPath;
+		// const testPath = testFolder[0].fsPath;
+
+		const reqifPath = openUri[0].fsPath.replace(/\\/g, '/');
+    	const testPath = testFolder[0].fsPath.replace(/\\/g, '/');
+
+		const process = spawn('coverage_check', [reqifPath, testPath]);
+		let result = '';
+		let error = '';
+
+		process.stdout.on('data', (data) => { result += data.toString(); });
+		process.stderr.on('data', (data) => {
+			error += data.toString();
+		});
+		process.on('close', (code) => {
+			if (code === 0) {
+				const diff = JSON.parse(result);
+				CoverageCheckWebviewProvider.show(diff, requirementDataProvider);
+			} else {
+				vscode.window.showErrorMessage(`Coverage check failed. ${error}`);
+			}
+		});
 	}));
 
 }

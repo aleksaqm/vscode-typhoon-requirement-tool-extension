@@ -132,6 +132,14 @@
           "light": "media/light/play-circle.svg",
           "dark": "media/dark/play-circle.svg"
         }
+      },
+      {
+        "command": "typhoon-requirement-tool.coverageCheck",
+        "title": "Coverage Check",
+        "icon": {
+          "light": "media/light/play-circle.svg",
+          "dark": "media/dark/play-circle.svg"
+        }
       }
     ],
     "viewsContainers": {
