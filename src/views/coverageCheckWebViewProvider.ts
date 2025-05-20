@@ -10,14 +10,6 @@ export class CoverageCheckWebviewProvider {
         );
 
         panel.webview.html = CoverageCheckWebviewProvider.getHtml(diff);
-
-        panel.webview.onDidReceiveMessage(async (msg) => {
-            if (msg.command === 'sync') {
-                // await requirementDataProvider.syncWithDiff(diff);
-                vscode.window.showInformationMessage('Requirements synced with test structure!');
-                panel.dispose();
-            }
-        });
     }
 
     static getHtml(diff: any): string {
@@ -225,9 +217,7 @@ export class CoverageCheckWebviewProvider {
                 ${renderTestDetails('Extra Tests', diff.extra_tests, "#e5c07b")}
                 ${renderModifiedTests(diff.modified_tests)}
                 <hr>
-                <button class="btn" onclick="vscode.postMessage({ command: 'sync' })">Sync Requirements</button>
                 <script>
-                    const vscode = acquireVsCodeApi();
                 </script>
             </body>
             </html>

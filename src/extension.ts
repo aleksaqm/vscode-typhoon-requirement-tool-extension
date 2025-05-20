@@ -254,9 +254,13 @@ export function activate(context: vscode.ExtensionContext) {
 			process.stderr.on('data', (data) => {
 				error += data.toString();
 			});
+			console.log('Coverage check process started');
+			console.log(result);
 			process.on('close', (code) => {
 				if (code === 0) {
+					console.log(result);
 					const diff = JSON.parse(result);
+					console.log(diff);
 					CoverageCheckWebviewProvider.show(diff, requirementDataProvider);
 				} else {
 					vscode.window.showErrorMessage(`Coverage check failed. ${error}`);
