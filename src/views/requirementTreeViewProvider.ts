@@ -31,9 +31,11 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
                 : vscode.TreeItemCollapsibleState.None,
             contextValue: element.contextValue,
         };
-    
-        if (element instanceof Requirement) {
-            treeItem.iconPath = this.getIconForRequirement(element);
+        if (element.iconPath){
+            treeItem.iconPath = element.iconPath;
+        }
+        else {
+            treeItem.iconPath = this.getIconForRequirement('default');
         }
     
         return treeItem;
@@ -89,15 +91,15 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         return (this.requirements.length === 0);
     }
 
-    private getIconForRequirement(requirement: Requirement): vscode.ThemeIcon | { light: vscode.Uri; dark: vscode.Uri } {
-        switch (requirement.status) {
-            case "Draft":
-                return new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.red")); // Red icon
+    private getIconForRequirement(iconType: string): vscode.ThemeIcon | { light: vscode.Uri; dark: vscode.Uri } {
+        switch (iconType) {
+            case "default":
+                return new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.white")); // Red icon
             case "Ready":
                 return new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.orange")); // Orange icon
             case "Reviewed":
                 return new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.yellow")); // Yellow icon
-            case "Approved":
+            case "blue":
                 return new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.blue")); // Blue icon
             case "Released":
                 return new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.green")); // Green icon

@@ -8,7 +8,8 @@ export class TreeNode extends vscode.TreeItem {
         public id : string,
         public label: string,
         public readonly collapsibleState: vscode.TreeItemCollapsibleState,
-        public contextValue: string
+        public contextValue: string,
+        public iconPath?: vscode.ThemeIcon | {light: vscode.Uri, dark: vscode.Uri},
     ) {
         super(label, collapsibleState);
     }

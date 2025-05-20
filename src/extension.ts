@@ -254,23 +254,77 @@ export function activate(context: vscode.ExtensionContext) {
 			process.stderr.on('data', (data) => {
 				error += data.toString();
 			});
-			console.log('Coverage check process started');
-			console.log(result);
 			process.on('close', (code) => {
 				if (code === 0) {
-					console.log(result);
 					const diff = JSON.parse(result);
 					console.log(diff);
 					CoverageCheckWebviewProvider.show(diff, requirementDataProvider);
+					changeNodeColors(diff);
 				} else {
 					vscode.window.showErrorMessage(`Coverage check failed. ${error}`);
 				}
 			});
-	
+			
+
+
 		} catch (err: any) {
 			vscode.window.showErrorMessage(`Unexpected error during test generation: ${err.message}`);
 		}
 	}));
+
+	function changeNodeColors(diff: any) {
+		const allNodes = requirementDataProvider.getRootNodes();
+		function processNode(node: any) {
+			node.iconPath = undefined;
+
+			switch (node.contextValue) {
+				case 'requirement':
+					console.log('requirement ' + node.label);
+					if (diff.missing_folders){
+						for (const folder of diff.missing_folders){
+							console.log('----------------');
+							const tokens = folder.toLowerCase().replace(/\\/g, '/').split('/');
+							console.log(node.label.replace(' ', '_').toLowerCase());
+							console.log('----------------');
+							if (tokens[tokens.length - 1] === node.label.replace(' ', '_').toLowerCase()){
+								node.iconPath = new vscode.ThemeIcon('error', new vscode.ThemeColor('testing.iconFailed'));
+							}
+						}
+					}
+					break;
+				case 'test':
+					const file_name = (node.parent.label + "/test_" + node.label).replace(' ', '_').toLowerCase();
+					if (diff.missing_files){
+						for (const file of diff.missing_files) {
+							if (file.replace(/\\/g, '/').toLowerCase().includes(file_name)){
+								node.iconPath = new vscode.ThemeIcon('error', new vscode.ThemeColor('testing.iconQueued'));
+							}
+						}
+					}
+					break;
+				case 'testCase':
+					console.log('test case ' + node.label);
+					if (diff.modified_tests){
+						Object.entries(diff.modified_tests).forEach(([file, tests]) => {
+							Object.entries(tests as any).forEach(([testName, changes]) => {
+								if (testName === node.label){
+									node.iconPath = new vscode.ThemeIcon('warning', new vscode.ThemeColor('testing.iconQueued'));
+									return;
+								}
+							});
+						});
+					}
+					break;
+			}
+
+			if (node.children && node.children.length > 0) {
+				node.children.forEach(processNode);
+			}
+		}
+
+		allNodes.forEach(processNode);
+		requirementDataProvider.refresh();
+	}
 
 }
 
@@ -296,6 +350,8 @@ function runTestGeneration(reqifPath: string, outputPath: string) {
 		}
 	});
 }
+
+
 
 
 
