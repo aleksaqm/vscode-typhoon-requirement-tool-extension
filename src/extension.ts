@@ -7,7 +7,7 @@ import { TestCase } from './models/testCase';
 import { DetailsViewProvider } from './views/detailsViewProvider';
 import { TabularViewProvider } from './views/tabularViewProvider';
 import { ReqifFileManager } from './utils/reqifFileManager';
-import { exec, spawn } from 'child_process';
+import { spawn } from 'child_process';
 import * as os from 'os';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -224,6 +224,20 @@ export function activate(context: vscode.ExtensionContext) {
 
 	}));
 
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.removeIcons', () => {
+		const allNodes = requirementDataProvider.getAllNodes();
+		if (allNodes.length === 0) {
+			vscode.window.showErrorMessage("No requirement data");
+			return;
+		}
+		function clearIcons(node: any) {
+			node.iconPath = new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.white"));
+		}
+		allNodes.forEach(clearIcons);
+		requirementDataProvider.refresh();
+		vscode.commands.executeCommand('setContext', 'typhoonRequirementTool.coverageActive', false);
+	}));
+
 	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.coverageCheck', async () => {
 		try {
 			if (requirementDataProvider.isEmpty()){
@@ -264,8 +278,8 @@ export function activate(context: vscode.ExtensionContext) {
 					vscode.window.showErrorMessage(`Coverage check failed. ${error}`);
 				}
 			});
-			
 
+			vscode.commands.executeCommand('setContext', 'typhoonRequirementTool.coverageActive', true);
 
 		} catch (err: any) {
 			vscode.window.showErrorMessage(`Unexpected error during test generation: ${err.message}`);
@@ -282,10 +296,7 @@ export function activate(context: vscode.ExtensionContext) {
 					console.log('requirement ' + node.label);
 					if (diff.missing_folders){
 						for (const folder of diff.missing_folders){
-							console.log('----------------');
 							const tokens = folder.toLowerCase().replace(/\\/g, '/').split('/');
-							console.log(node.label.replace(' ', '_').toLowerCase());
-							console.log('----------------');
 							if (tokens[tokens.length - 1] === node.label.replace(' ', '_').toLowerCase()){
 								node.iconPath = new vscode.ThemeIcon('error', new vscode.ThemeColor('testing.iconFailed'));
 							}
@@ -297,7 +308,7 @@ export function activate(context: vscode.ExtensionContext) {
 					if (diff.missing_files){
 						for (const file of diff.missing_files) {
 							if (file.replace(/\\/g, '/').toLowerCase().includes(file_name)){
-								node.iconPath = new vscode.ThemeIcon('error', new vscode.ThemeColor('testing.iconQueued'));
+								node.iconPath = new vscode.ThemeIcon('error', new vscode.ThemeColor('testing.iconFailed'));
 							}
 						}
 					}
@@ -309,6 +320,16 @@ export function activate(context: vscode.ExtensionContext) {
 							Object.entries(tests as any).forEach(([testName, changes]) => {
 								if (testName === node.label){
 									node.iconPath = new vscode.ThemeIcon('warning', new vscode.ThemeColor('testing.iconQueued'));
+									return;
+								}
+							});
+						});
+					}
+					if (diff.missing_tests){
+						Object.entries(diff.missing_tests).forEach(([file, tests]) => {
+							Object.entries(tests as any).forEach(([testName, changes]) => {
+								if (testName === node.label){
+									node.iconPath = new vscode.ThemeIcon('error', new vscode.ThemeColor('testing.iconFailed'));
 									return;
 								}
 							});

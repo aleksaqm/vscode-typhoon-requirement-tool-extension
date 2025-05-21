@@ -140,6 +140,14 @@
           "light": "media/light/play-circle.svg",
           "dark": "media/dark/play-circle.svg"
         }
+      },
+      {
+        "command": "typhoon-requirement-tool.removeIcons",
+        "title": "Remove Icons",
+        "icon": {
+          "light": "media/light/broom.svg",
+          "dark": "media/dark/broom.svg"
+        }
       }
     ],
     "viewsContainers": {
@@ -234,6 +242,11 @@
         {
             "command": "typhoon-requirement-tool.exportToCSV",
             "when": "view == typhoon-requirement-tool.tree && typhoon-requirement-tool.hasRequirements"
+        },
+        {
+          "command": "typhoon-requirement-tool.removeIcons",
+          "when": "view == typhoon-requirement-tool.tree && typhoonRequirementTool.coverageActive",
+          "group": "navigation"
         }
       ],
       "commandPalette": [

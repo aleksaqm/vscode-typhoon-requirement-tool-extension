@@ -94,17 +94,17 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
     private getIconForRequirement(iconType: string): vscode.ThemeIcon | { light: vscode.Uri; dark: vscode.Uri } {
         switch (iconType) {
             case "default":
-                return new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.white")); // Red icon
+                return new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.white"));
             case "Ready":
-                return new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.orange")); // Orange icon
+                return new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.orange"));
             case "Reviewed":
-                return new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.yellow")); // Yellow icon
+                return new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.yellow"));
             case "blue":
-                return new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.blue")); // Blue icon
+                return new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.blue"));
             case "Released":
-                return new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.green")); // Green icon
+                return new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.green"));
             default:
-                return new vscode.ThemeIcon("circle-outline"); // Default icon
+                return new vscode.ThemeIcon("circle-outline");
         }
     }
 

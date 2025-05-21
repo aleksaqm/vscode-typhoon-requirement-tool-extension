@@ -13,67 +13,53 @@ export class CoverageCheckWebviewProvider {
     }
 
     static getHtml(diff: any): string {
-        function renderSideBySide(titleLeft: string, itemsLeft: string[], colorLeft: string, titleRight: string, itemsRight: string[], colorRight: string) {
+        function renderSideBySide(title: string, missing: string[] = [], extra: string[] = [], colorMissing = "#e06c75", colorExtra = "#e5c07b") {
+            const maxLen = Math.max(missing.length, extra.length, 1);
             return `
-                <div class="row">
-                    <div class="column">
-                        <h3 style="color:${colorLeft};">${titleLeft}</h3>
-                        <ul>${(itemsLeft || []).map(item => `<li>${item}</li>`).join('') || '<li class="muted">None</li>'}</ul>
-                    </div>
-                    <div class="column">
-                        <h3 style="color:${colorRight};">${titleRight}</h3>
-                        <ul>${(itemsRight || []).map(item => `<li>${item}</li>`).join('') || '<li class="muted">None</li>'}</ul>
+                <div class="side-by-side-section">
+                    <h3>${title}</h3>
+                    <div class="side-by-side-table">
+                        <div class="side-by-side-header" style="color:${colorMissing};">Missing</div>
+                        <div class="side-by-side-header" style="color:${colorExtra};">Extra</div>
+                        ${Array.from({ length: maxLen }).map((_, i) => `
+                            <div class="side-by-side-cell">${missing[i] ? `<code>${missing[i]}</code>` : '<span class="muted">None</span>'}</div>
+                            <div class="side-by-side-cell">${extra[i] ? `<code>${extra[i]}</code>` : '<span class="muted">None</span>'}</div>
+                        `).join('')}
                     </div>
                 </div>
             `;
         }
 
-        function renderTestDetails(title: string, obj: Record<string, any>, color = "#e06c75") {
-            if (!obj || Object.keys(obj).length === 0) {return '';};
+        function renderTestSideBySide(title: string, missingObj: Record<string, any>, extraObj: Record<string, any>, colorMissing = "#e06c75", colorExtra = "#e5c07b") {
+            const missingFiles = Object.keys(missingObj || {}).filter(
+                file => missingObj[file] && Object.keys(missingObj[file]).length > 0
+            );
+            const extraFiles = Object.keys(extraObj || {}).filter(
+                file => extraObj[file] && Object.keys(extraObj[file]).length > 0
+            );
+            const maxLen = Math.max(missingFiles.length, extraFiles.length, 1);
             return `
-                <div class="section">
-                    <h3 style="color:${color};">${title}</h3>
-                    <ul>
-                        ${Object.entries(obj).map(([file, tests]) => `
-                            <li>
-                                <code>${file}</code>
-                                <ul>
-                                    ${tests && typeof tests === 'object' && Object.keys(tests).length > 0
-                                        ? Object.entries(tests).map(([testName, testDetails]) => `
-                                            <li>
-                                                <b>${testName}</b>
-                                                <ul>
-                                                    ${Object.entries(testDetails as Record<string, any>).map(([key, value]) => `
-                                                        <li>
-                                                            <span style="color:#61afef;">${key}:</span>
-                                                            ${
-                                                                key === 'parameters'
-                                                                    ? (
-                                                                        Array.isArray(value)
-                                                                            ? renderParameterSets(value)
-                                                                            : (typeof value === 'object' && value !== null)
-                                                                                ? renderParameterSets([value])
-                                                                                : String(value)
-                                                                    )
-                                                                    : Array.isArray(value)
-                                                                        ? value.join(', ')
-                                                                        : typeof value === 'object' && value !== null
-                                                                            ? `<pre>${JSON.stringify(value, null, 2)}</pre>`
-                                                                            : String(value)
-                                                            }
-                                                        </li>
-                                                    `).join('')}
-                                                </ul>
-                                            </li>
-                                        `).join('')
-                                        : '<li style="color:#888;">No tests</li>'
-                                    }
-                                </ul>
-                            </li>
+                <div class="side-by-side-section">
+                    <h3>${title}</h3>
+                    <div class="side-by-side-table">
+                        <div class="side-by-side-header" style="color:${colorMissing};">Missing</div>
+                        <div class="side-by-side-header" style="color:${colorExtra};">Extra</div>
+                        ${Array.from({ length: maxLen }).map((_, i) => `
+                            <div class="side-by-side-cell">
+                                ${missingFiles[i] ? `<code>${missingFiles[i]}</code>${renderTestNames(missingObj[missingFiles[i]])}` : '<span class="muted">None</span>'}
+                            </div>
+                            <div class="side-by-side-cell">
+                                ${extraFiles[i] ? `<code>${extraFiles[i]}</code>${renderTestNames(extraObj[extraFiles[i]])}` : '<span class="muted">None</span>'}
+                            </div>
                         `).join('')}
-                    </ul>
+                    </div>
                 </div>
             `;
+        }
+
+        function renderTestNames(tests: any) {
+            if (!tests || Object.keys(tests).length === 0) {return '';};
+            return `<ul>${Object.keys(tests).map(name => `<li>${name}</li>`).join('')}</ul>`;
         }
 
         function renderParameterSets(paramSets: any[]) {
@@ -131,48 +117,54 @@ export class CoverageCheckWebviewProvider {
             <html lang="en">
             <head>
                 <style>
-                    :root {
-                        color-scheme: light dark;
-                    }
-
                     body {
                         font-family: var(--vscode-font-family, sans-serif);
                         color: var(--vscode-editor-foreground);
                         background-color: var(--vscode-editor-background);
                         padding: 16px;
                     }
-
-                    h2 {
-                        color: var(--vscode-editor-foreground);
+                    h2 { color: var(--vscode-editor-foreground); }
+                    .side-by-side-section { margin-bottom: 24px; }
+                    .side-by-side-table {
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 0;
+                        border: 1px solid var(--vscode-editorWidget-border, #ccc);
+                        border-radius: 4px;
+                        overflow: hidden;
                     }
-
-                    strong {
+                    .side-by-side-header {
+                        background: var(--vscode-editorWidget-background, #222);
                         font-weight: bold;
+                        padding: 8px;
+                        border-bottom: 1px solid var(--vscode-editorWidget-border, #ccc);
                     }
-
-                    ul {
-                        list-style: disc;
-                        padding-left: 20px;
+                    .side-by-side-cell {
+                        padding: 8px;
+                        border-bottom: 1px solid var(--vscode-editorWidget-border, #ccc);
+                        border-right: 1px solid var(--vscode-editorWidget-border, #ccc);
                     }
-
-                    li {
-                        margin-bottom: 4px;
+                    .side-by-side-cell:nth-child(2n) {
+                        border-right: none;
                     }
-
+                    .side-by-side-table > :last-child,
+                    .side-by-side-table > :nth-last-child(2) {
+                        border-bottom: none;
+                    }
+                    .muted { color: #888; }
                     code {
                         background-color: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.2));
                         padding: 2px 4px;
                         border-radius: 3px;
                         font-family: var(--vscode-editor-font-family, monospace);
                     }
-
-                    pre {
-                        background-color: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.2));
-                        padding: 8px;
-                        border-radius: 4px;
-                        overflow-x: auto;
+                    ul { margin: 0; padding-left: 20px; }
+                    li { margin-bottom: 2px; }
+                    hr {
+                        border: none;
+                        border-top: 1px solid var(--vscode-editorWidget-border);
+                        margin: 20px 0;
                     }
-
                     table {
                         border-collapse: collapse;
                         margin: 8px 0;
@@ -187,38 +179,15 @@ export class CoverageCheckWebviewProvider {
                         background-color: var(--vscode-editorWidget-background);
                         color: var(--vscode-editor-foreground);
                     }
-
-                    button {
-                        background-color: var(--vscode-button-background);
-                        color: var(--vscode-button-foreground);
-                        border: none;
-                        border-radius: 4px;
-                        padding: 8px 16px;
-                        font-size: 1em;
-                        cursor: pointer;
-                    }
-
-                    button:hover {
-                        background-color: var(--vscode-button-hoverBackground);
-                    }
-
-                    hr {
-                        border: none;
-                        border-top: 1px solid var(--vscode-editorWidget-border);
-                        margin: 20px 0;
-                    }
                 </style>
             </head>
             <body>
                 <h2>Coverage Differences</h2>
-                ${renderSideBySide('Missing Folders', diff.missing_folders, "#e06c75", 'Extra Folders', diff.extra_folders, "#e5c07b")}
-                ${renderSideBySide('Missing Files', diff.missing_files, "#e06c75", 'Extra Files', diff.extra_files, "#e5c07b")}
-                ${renderTestDetails('Missing Tests', diff.missing_tests, "#e06c75")}
-                ${renderTestDetails('Extra Tests', diff.extra_tests, "#e5c07b")}
+                ${renderSideBySide('Folders', diff.missing_folders, diff.extra_folders)}
+                ${renderSideBySide('Files', diff.missing_files, diff.extra_files)}
+                ${renderTestSideBySide('Tests', diff.missing_tests, diff.extra_tests)}
                 ${renderModifiedTests(diff.modified_tests)}
                 <hr>
-                <script>
-                </script>
             </body>
             </html>
         `;
