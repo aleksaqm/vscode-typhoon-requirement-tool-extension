@@ -369,6 +369,13 @@ export class TabularViewProvider {
                     .hidden {
                         display: none !important;
                     }
+
+                    .error-row {
+                        background-color:rgb(167, 86, 86) !important; /* light red */
+                    }
+                    .warning-row {
+                        background-color:rgb(202, 174, 96) !important; /* light red */
+                    }
                 </style>
             </head>
             <body>
@@ -441,9 +448,17 @@ export class TabularViewProvider {
                     const vscode = acquireVsCodeApi();
 
                     function renderRow(node, parentId = null) {
+                        let rowClass = '';
+                        if (node.iconPath && (typeof node.iconPath === 'object')){
+                            if (node.iconPath.id === 'warning') {
+                                rowClass = 'warning-row';
+                            }else if (node.iconPath.id === 'error') {
+                                rowClass = 'error-row';
+                            }
+                        }
                         const hasChildren = node.children && node.children.length > 0;
                         return \`
-                            <tr data-id="\${node.id}" data-parent-id="\${parentId}" class="\${parentId ? 'hidden' : ''}">
+                            <tr data-id="\${node.id}" data-parent-id="\${parentId}" class="\${parentId ? 'hidden' : ''} \${rowClass}">
                                 <td>
                                     \${hasChildren ? '<span class="expandable" data-loaded="false">[+]</span>' : ''}
                                 </td>
