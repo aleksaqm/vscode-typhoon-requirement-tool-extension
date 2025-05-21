@@ -5,11 +5,13 @@ import { getUniqueId } from '../utils/idGenerator';
 import { Requirement } from '../models/requirement';
 import { TestNode } from '../models/test';
 import { TestCase } from '../models/testCase';
+// import _ from 'lodash';
 
 export class TabularViewProvider {
     private static panel: vscode.WebviewPanel | null = null;
     private static requirementDataProvider: RequirementTreeProvider | null = null;
     private static expandedNodeIds: Set<string> = new Set();
+    private static allNodes : TreeNode[] = [];
 
     static show(requirementDataProvider: RequirementTreeProvider): void {
         this.requirementDataProvider = requirementDataProvider;
@@ -33,9 +35,20 @@ export class TabularViewProvider {
         const updateTabularView = () => {
             const expandedNodeIds = Array.from(TabularViewProvider.expandedNodeIds);
             const rootRequirements = this.requirementDataProvider?.getRootNodes() || [];
+            
             const serializedRequirements = TabularViewProvider.serializeTree(rootRequirements);
+            this.allNodes = serializedRequirements;
+            let coverageActive = rootRequirements.some(node => hasCoverageIcon(node));
 
-            TabularViewProvider.panel!.webview.html = TabularViewProvider.getHtml(serializedRequirements, expandedNodeIds);
+            function hasCoverageIcon(node : TreeNode) : boolean {
+                if (node.iconPath && typeof node.iconPath === 'object' &&
+                    (node.iconPath.id === 'warning' || node.iconPath.id === 'error')) {
+                    return true;
+                }
+                return node.children && node.children.some(hasCoverageIcon);
+            }
+
+            TabularViewProvider.panel!.webview.html = TabularViewProvider.getHtml(expandedNodeIds, coverageActive);
       };
 
         updateTabularView();
@@ -59,11 +72,17 @@ export class TabularViewProvider {
             }else if (message.command === 'addNode') {
                 this.addNode(message.data);
             }else if (message.command === 'updateParameters'){
-                console.log(message.data);
                 this.updateParameters(message.data.id, message.data.parameters);
             }else if (message.command === 'updateArray'){
-                console.log(message.data);
                 this.updateArray(message.data.id, message.data.field, message.data.value);
+            }else if (message.command === 'removeIcons') {
+                function clearIcons(node: TreeNode) {
+                    node.iconPath = new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.white"));
+                    node.children.forEach(clearIcons);
+                }
+                this.allNodes.forEach(clearIcons);
+                TabularViewProvider.panel?.webview.postMessage({ command: 'iconsRemoved' });
+                TabularViewProvider.panel!.webview.html = TabularViewProvider.getHtml([], false);
             }
         });
     }
@@ -179,13 +198,11 @@ export class TabularViewProvider {
     private static updateParameters(id: string, parameters: string): void {
         const node = this.findNodeById(this.requirementDataProvider?.getAllNodes() || [], id);
         if (node instanceof TestCase) {
-            console.log(node.parameters);
             var parsedParameters = JSON.parse(parameters);
             parsedParameters.forEach((parameter: any) => {
                 parameter.value = parameter.value.split(',').map((item: string) => item.trim());
             });
             node.parameters = parsedParameters;
-            console.log(node.parameters);
             this.requirementDataProvider?.refresh();
         }
     }
@@ -200,8 +217,8 @@ export class TabularViewProvider {
         }
     }
 
-    private static getHtml(requirements: TreeNode[], expandedNodeIds: string[] = []): string {
-        const treeJson = JSON.stringify(requirements);
+    private static getHtml(expandedNodeIds: string[] = [], coverageActive: boolean): string {
+        const treeJson = JSON.stringify(this.allNodes);
         const expandedIdsJson = JSON.stringify(expandedNodeIds);
         return `
             <!DOCTYPE html>
@@ -376,6 +393,23 @@ export class TabularViewProvider {
                     .warning-row {
                         background-color:rgb(202, 174, 96) !important; /* light red */
                     }
+                    button:disabled, .modal-content button:disabled {
+                        opacity: 0.5;
+                        cursor: not-allowed;
+                        background: var(--vscode-button-background, #0e639c);
+                        color: var(--vscode-button-foreground, #fff);
+                    }
+
+                    tr.selected {
+                        outline: 2px solid var(--vscode-button-background, #0e639c) !important;
+                    }
+
+                    tr.selected.error-row,
+                    tr.selected.warning-row {
+                        color: #fff !important;
+                        font-weight: bold;
+                    }
+                    
                 </style>
             </head>
             <body>
@@ -385,6 +419,7 @@ export class TabularViewProvider {
                     <button id="addTest">Add Test</button>
                     <button id="addTestCase">Add Test Case</button>
                     <button id="deleteRow">Delete Row</button>
+                    <button id="removeIcons">Remove Errors/Warnings</button>
                 </div>
                 <table>
                     <thead>
@@ -446,6 +481,7 @@ export class TabularViewProvider {
                     const tree = ${treeJson};
                     let selectedRow = null;
                     const vscode = acquireVsCodeApi();
+                    let coverageActive = ${coverageActive};
 
                     function renderRow(node, parentId = null) {
                         let rowClass = '';
@@ -489,6 +525,26 @@ export class TabularViewProvider {
                         const childRowsHtml = renderRows(children, nodeId);
                         parentRow.insertAdjacentHTML('afterend', childRowsHtml);
                     }
+
+                    document.addEventListener('DOMContentLoaded', () => {
+                        const removeIconsBtn = document.getElementById('removeIcons');
+                        if (coverageActive) {
+                            removeIconsBtn.style.display = '';
+                        } else {
+                            removeIconsBtn.style.display = 'none';
+                        }
+                    });
+
+                    document.getElementById('removeIcons').addEventListener('click', () => {
+                        vscode.postMessage({ command: 'removeIcons' });
+                    });
+
+                    window.addEventListener('message', event => {
+                        if (event.data.command === 'iconsRemoved') {
+                            document.getElementById('removeIcons').style.display = 'none';
+
+                        }
+                    });
     
                     document.getElementById('requirementsTable').innerHTML = renderRows(tree);
                     updateButtonStates();
@@ -560,13 +616,11 @@ export class TabularViewProvider {
 
                     function addNode(type) {
                         const parentId = selectedRow ? selectedRow.getAttribute('data-id') : null;
-                        const parentType = selectedRow ? selectedRow.children[2].textContent.trim().toLowerCase() : null;
-
+                        const parentType = selectedRow ? selectedRow.children[3].textContent.trim().toLowerCase() : null;
                         if ((parentType === 'testcase' || ((type === 'requirement' || type==='test') && parentType !== 'requirement') || (type === 'testcase' && parentType !== 'test')) && parentType) {
                             alert('Invalid operation: Cannot add this type of node here.');
                             return;
                         }
-
                         const newRow = document.createElement('tr');
                         newRow.innerHTML = \`
                                 <td><input type="text" placeholder="Name" class="expandable-input"></td>
@@ -729,7 +783,7 @@ export class TabularViewProvider {
                             return;
                         }
 
-                        const rowType = selectedRow.children[2].textContent.trim().toLowerCase(); 
+                        const rowType = selectedRow.children[3].textContent.trim().toLowerCase(); 
                         console.log(rowType);
                         if (rowType === 'requirement') {
                             addRequirementButton.disabled = false;

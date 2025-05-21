@@ -137,8 +137,8 @@
         "command": "typhoon-requirement-tool.coverageCheck",
         "title": "Coverage Check",
         "icon": {
-          "light": "media/light/play-circle.svg",
-          "dark": "media/dark/play-circle.svg"
+          "light": "media/light/check-circle.svg",
+          "dark": "media/dark/check-circle.svg"
         }
       },
       {
@@ -224,6 +224,11 @@
         },
         {
           "command": "typhoon-requirement-tool.openTabularView",
+          "when": "view == typhoon-requirement-tool.tree && typhoon-requirement-tool.hasRequirements",
+          "group": "navigation"
+        },
+        {
+          "command": "typhoon-requirement-tool.coverageCheck",
           "when": "view == typhoon-requirement-tool.tree && typhoon-requirement-tool.hasRequirements",
           "group": "navigation"
         },

@@ -16,7 +16,7 @@ import { CoverageCheckWebviewProvider } from './views/coverageCheckWebViewProvid
 export function activate(context: vscode.ExtensionContext) {
 
 	console.log('Congratulations, your extension "typhoon-requirement-tool" is now active!');
-
+	let coverageActive : boolean = false;
 	const detailsViewProvider = new DetailsViewProvider(context);
 
 	const requirementDataProvider = new RequirementTreeProvider(detailsViewProvider);
@@ -170,6 +170,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 
 	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.openTabularView', () => {
+		// TabularViewProvider.coverageActive = coverageActive;
 		TabularViewProvider.show(requirementDataProvider);
 	}));
 
@@ -236,6 +237,7 @@ export function activate(context: vscode.ExtensionContext) {
 		allNodes.forEach(clearIcons);
 		requirementDataProvider.refresh();
 		vscode.commands.executeCommand('setContext', 'typhoonRequirementTool.coverageActive', false);
+		coverageActive = false;
 	}));
 
 	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.coverageCheck', async () => {
@@ -280,6 +282,7 @@ export function activate(context: vscode.ExtensionContext) {
 			});
 
 			vscode.commands.executeCommand('setContext', 'typhoonRequirementTool.coverageActive', true);
+			coverageActive = true;
 
 		} catch (err: any) {
 			vscode.window.showErrorMessage(`Unexpected error during test generation: ${err.message}`);
