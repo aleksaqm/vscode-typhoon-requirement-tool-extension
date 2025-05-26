@@ -25,7 +25,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         const hasChildren = element.children && element.children.length > 0;
     
         const treeItem: vscode.TreeItem = {
-            label: element.label,
+            label: element.level ? `${element.level} | ${element.label}` : element.label,
             collapsibleState: hasChildren
                 ? vscode.TreeItemCollapsibleState.Collapsed
                 : vscode.TreeItemCollapsibleState.None,
@@ -60,7 +60,14 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
 
     updateTree(nodes: TreeNode[]): void {
         this.requirements = nodes;
-        this.refresh();
+        this.updateLevels();
+        this.refresh();        
+    }
+
+    updateLevels(): void {
+        this.getRootNodes().forEach((root, idx) => {
+            root.assignLevels((idx + 1).toString());
+        });
     }
 
     updateExportContext(): void {
@@ -115,6 +122,8 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
                 requirement.parent = this.selectedNode;
             }
             this.requirements.push(requirement);
+
+            this.updateLevels();
             this.refresh();
         });
     }
@@ -124,6 +133,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
             parent.children.push(test);
             test.parent = parent;
             this.requirements.push(test);
+            this.updateLevels();
             this.refresh();
         });
     }
@@ -133,6 +143,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
             parent.children.push(testCase);
             testCase.parent = parent;
             this.requirements.push(testCase);
+            this.updateLevels();
             this.refresh();
         });
     }
@@ -160,7 +171,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         node.children.forEach((child) => {
             this.deleteElement(child);
         });
-    
+        this.updateLevels();
         this.refresh();
         this.onNodeSelected(null);
     }
@@ -169,6 +180,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         const index = this.requirements.indexOf(node);
         if (index > -1) {
             this.requirements.splice(index, 1);
+            this.updateLevels();
             this.refresh();
         }
     }
@@ -284,7 +296,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
                 this.requirements.push(node);
             }
         });
-    
+        this.updateLevels();
         this.refresh();
     }
 
@@ -391,6 +403,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         });
     
         // this.requirements = rootNodes;
+        this.updateLevels();
         this.refresh();
     }
 
