@@ -493,10 +493,13 @@ export class TabularViewProvider {
                             }
                         }
                         const hasChildren = node.children && node.children.length > 0;
+                        const level = node.level || '';
                         return \`
                             <tr data-id="\${node.id}" data-parent-id="\${parentId}" class="\${parentId ? 'hidden' : ''} \${rowClass}">
                                 <td>
-                                    \${hasChildren ? '<span class="expandable" data-loaded="false">[+]</span>' : ''}
+                                    \${hasChildren 
+                                        ? \`<span class="expandable" data-loaded="false">[+] \${level}</span>\` 
+                                        : \`<span data-loaded="false">\${level}</span>\`}
                                 </td>
                                 <td>
                                     \${node.label || ''}
@@ -521,6 +524,15 @@ export class TabularViewProvider {
                     }
     
                     function loadChildren(nodeId, children) {
+                        function removeDescendants(parentId) {
+                            document.querySelectorAll(\`tr[data-parent-id="\${parentId}"]\`).forEach(childRow => {
+                                const childId = childRow.getAttribute('data-id');
+                                removeDescendants(childId); // Recursively remove grandchildren
+                                childRow.remove();
+                            });
+                        }
+                        removeDescendants(nodeId);
+
                         const parentRow = document.querySelector(\`tr[data-id="\${nodeId}"]\`);
                         const childRowsHtml = renderRows(children, nodeId);
                         parentRow.insertAdjacentHTML('afterend', childRowsHtml);
@@ -554,11 +566,13 @@ export class TabularViewProvider {
                             const expander = event.target;
                             const row = expander.closest('tr');
                             const id = row.getAttribute('data-id');
-                            const isExpanded = expander.textContent === '[-]';
+                             const node = findNodeById(tree, id);
+                            const level = node && node.level ? node.level : '';
+                            const isExpanded = expander.textContent.includes('[-]');
                             const alreadyLoaded = expander.getAttribute('data-loaded') === 'true';
 
                             if (isExpanded) {
-                                expander.textContent = '[+]';
+                                expander.textContent = \`[+] \${level}\`;	
                                 collapseDescendants(id);
                             } else {
                                 if (!alreadyLoaded) {
@@ -571,7 +585,7 @@ export class TabularViewProvider {
                                 document.querySelectorAll(\`tr[data-parent-id="\${id}"]\`).forEach(childRow => {
                                     childRow.classList.remove('hidden');
                                 });
-                                expander.textContent = '[-]';
+                                expander.textContent = \`[-] \${level}\`;
                             }
                         } else if (event.target.closest('tr')) {
                             const row = event.target.closest('tr');
@@ -746,7 +760,9 @@ export class TabularViewProvider {
                             const childId = childRow.getAttribute('data-id');
                             const expander = childRow.querySelector('.expandable');
                             if (expander) {
-                                expander.textContent = '[+]';
+                                const node = findNodeById(tree, childId);
+                                const level = node && node.level ? node.level : '';
+                                expander.textContent = \`[+] \${level}\`;
                                 expander.setAttribute('data-loaded', 'false');
                             }
                             childRow.classList.add('hidden');
@@ -939,8 +955,8 @@ export class TabularViewProvider {
                     const expandedNodeIds = ${expandedIdsJson};
                     expandedNodeIds.forEach(id => {
                         const expander = document.querySelector(\`tr[data-id="\${id}"] .expandable\`);
-                        if (expander && expander.textContent === '[+]') {
-                            expander.click(); // Trigger expansion
+                        if (expander && expander.textContent.includes('[+]')) {
+                            expander.click();
                         }
                     });
 
