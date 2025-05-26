@@ -16,6 +16,7 @@ export class TestCaseWebviewProvider {
         panel.webview.onDidReceiveMessage((message) => {
             if (message.command === 'submit') {
                 const { name, scenario, steps, prerequisites, testData, expectedResults, parameters } = message.data;
+                console.log(message.data);
                 if (name && scenario && steps && prerequisites && expectedResults && parameters) {
                     if (node) {
                         const id = node.id!;
@@ -132,7 +133,9 @@ export class TestCaseWebviewProvider {
                                 .join('')}
                         </ul>
                     </div>
-                    <vscode-button id="submitButton">${node ? 'Save Changes' : 'Submit'}</vscode-button>
+                    <vscode-button id="submitButton" type="button" appearance="primary">
+                        ${node ? 'Save Changes' : 'Submit'}
+                    </vscode-button>
                 </form>
     
                 <script>
@@ -147,6 +150,7 @@ export class TestCaseWebviewProvider {
                     function addItem(listName) {
                         const input = document.getElementById(\`\${listName}Input\`);
                         const value = input.value.trim();
+                        console.log(value);
                         if (value) {
                             lists[listName].push(value);
                             updateList(listName);
@@ -177,11 +181,15 @@ export class TestCaseWebviewProvider {
                     // Initialize lists with existing values
                     Object.keys(lists).forEach(updateList);
 
-                    const parameters = ${node ? JSON.stringify(parameters) ?? [] : []};
+                    const parameters = ${node ? JSON.stringify(parameters) : '[]'};
 
                     ['steps', 'prerequisites', 'testData', 'expectedResults'].forEach(listName => {
                         document.getElementById(\`add\${listName}Button\`)
                             .addEventListener('click', () => addItem(listName));
+                    });
+
+                    document.getElementById('testCaseForm').addEventListener('submit', (e) => {
+                        e.preventDefault();
                     });
 
                     document.getElementById('addParameterButton').addEventListener('click', () => {
@@ -237,10 +245,6 @@ export class TestCaseWebviewProvider {
                         }
                     });
 
-                    document.getElementById('removeParamButton').addEventListener('click', (e) => {
-                        updateParametersList();
-                    })
-
                     function removeParameter(index) {
                         console.log("AAAAAAAAAAAAAAAAAAAAAA");
                         parameters.splice(index, 1);
@@ -263,12 +267,19 @@ export class TestCaseWebviewProvider {
                         });
                     }
 
-                    
     
                     document.getElementById('submitButton').addEventListener('click', () => {
+                        console.log("AAAAAAAAAAAAAAAAAAAA");
                         const name = document.getElementById('name').value;
                         const scenario = document.getElementById('scenario').value;
-    
+                        console.log(name);
+                        console.log(scenario);
+                        console.log(lists.steps);
+                        console.log(lists.prerequisites);
+                        console.log(lists.testData);
+                        console.log(lists.expectedResults);
+                        console.log(parameters);
+
                         vscode.postMessage({
                             command: 'submit',
                             data: {
@@ -308,6 +319,18 @@ export class TestCaseWebviewProvider {
                     document.addEventListener('DOMContentLoaded', () => {
                         updateParametersList();
                     });
+
+                    window.addEventListener('DOMContentLoaded', () => {
+                        const submitButton = document.getElementById('submitButton');
+                        console.log(submitButton);
+                        if (submitButton) {
+                            submitButton.addEventListener('click', () => {
+                            console.log("AAAAAAAAAAAAAAAAAAAA");
+                            });
+                        } else {
+                            console.error("Submit button not found in DOM");
+                        }
+                    });
                 </script>
             </body>
             </html>
@@ -320,12 +343,12 @@ export class TestCaseWebviewProvider {
                 (item, index) => `
                 <li>
                     ${item}
-                    <vscode-button class="remove-button" ${index})">Remove</vscode-button>
+                    <button class="remove-button" data-index="${index}" data-list="${listName}">Remove</button>
                 </li>
             `
             )
             .join('');
-    
+
         return `
             <label for="${listName}">${label}:</label>
             <vscode-text-field id="${listName}Input" placeholder="Enter ${label.toLowerCase()}" ></vscode-text-field>
