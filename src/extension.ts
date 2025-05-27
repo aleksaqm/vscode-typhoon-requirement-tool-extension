@@ -301,7 +301,7 @@ export function activate(context: vscode.ExtensionContext) {
 						for (const folder of diff.missing_folders){
 							const tokens = folder.toLowerCase().replace(/\\/g, '/').split('/');
 							if (tokens[tokens.length - 1] === node.label.replace(' ', '_').toLowerCase()){
-								node.iconPath = new vscode.ThemeIcon('error', new vscode.ThemeColor('testing.iconFailed'));
+								node.iconPath = new vscode.ThemeIcon('diff-removed', new vscode.ThemeColor('testing.iconFailed'));
 							}
 						}
 					}
@@ -311,7 +311,7 @@ export function activate(context: vscode.ExtensionContext) {
 					if (diff.missing_files){
 						for (const file of diff.missing_files) {
 							if (file.replace(/\\/g, '/').toLowerCase().includes(file_name)){
-								node.iconPath = new vscode.ThemeIcon('error', new vscode.ThemeColor('testing.iconFailed'));
+								node.iconPath = new vscode.ThemeIcon('diff-removed', new vscode.ThemeColor('testing.iconFailed'));
 							}
 						}
 					}
@@ -320,9 +320,9 @@ export function activate(context: vscode.ExtensionContext) {
 					console.log('test case ' + node.label);
 					if (diff.modified_tests){
 						Object.entries(diff.modified_tests).forEach(([file, tests]) => {
-							Object.entries(tests as any).forEach(([testName, changes]) => {
-								if (testName === node.label){
-									node.iconPath = new vscode.ThemeIcon('warning', new vscode.ThemeColor('testing.iconQueued'));
+							Object.entries(tests as any).forEach(([id, changes]) => {
+								if (id === node.id){
+									node.iconPath = new vscode.ThemeIcon('diff-modified', new vscode.ThemeColor('testing.iconQueued'));
 									return;
 								}
 							});
@@ -332,11 +332,14 @@ export function activate(context: vscode.ExtensionContext) {
 						Object.entries(diff.missing_tests).forEach(([file, tests]) => {
 							Object.entries(tests as any).forEach(([testName, changes]) => {
 								if (testName === node.label){
-									node.iconPath = new vscode.ThemeIcon('error', new vscode.ThemeColor('testing.iconFailed'));
+									node.iconPath = new vscode.ThemeIcon('diff-removed', new vscode.ThemeColor('testing.iconFailed'));
 									return;
 								}
 							});
 						});
+					}
+					if (diff.skipped_tests.includes(node.id)) {
+						node.iconPath = new vscode.ThemeIcon('debug-step-over', new vscode.ThemeColor('testing.iconQueued'));
 					}
 					break;
 			}

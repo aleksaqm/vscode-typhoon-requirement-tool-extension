@@ -58,6 +58,10 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         return this.requirements;
     }
 
+    getNodeById(id: string): TreeNode | undefined {
+        return this.requirements.find(node => node.id === id);
+    }
+
     updateTree(nodes: TreeNode[]): void {
         this.requirements = nodes;
         this.updateLevels();

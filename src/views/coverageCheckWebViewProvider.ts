@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
+import { RequirementTreeProvider } from './requirementTreeViewProvider';
 
 export class CoverageCheckWebviewProvider {
+    private static requirementDataProvider: RequirementTreeProvider;
     static show(diff: any, requirementDataProvider: any) {
         const panel = vscode.window.createWebviewPanel(
             'coverageDiff',
@@ -8,7 +10,7 @@ export class CoverageCheckWebviewProvider {
             vscode.ViewColumn.One,
             { enableScripts: true }
         );
-
+        CoverageCheckWebviewProvider.requirementDataProvider = requirementDataProvider;
         panel.webview.html = CoverageCheckWebviewProvider.getHtml(diff);
     }
 
@@ -89,9 +91,9 @@ export class CoverageCheckWebviewProvider {
                             <li>
                                 <code>${file}</code>
                                 <ul>
-                                    ${Object.entries(tests).map(([testName, changes]) => `
+                                    ${Object.entries(tests).map(([id, changes]) => `
                                         <li>
-                                            <b>${testName}</b>
+                                            <b>${CoverageCheckWebviewProvider.requirementDataProvider.getNodeById(id)?.label}</b>
                                             <ul>
                                                 ${Object.entries(changes as Record<string, any>).map(([param, values]) => `
                                                     <li>
@@ -111,6 +113,19 @@ export class CoverageCheckWebviewProvider {
                 </div>
             `;
         }
+
+        function renderSkippedTests(skipped: string[] = []) {
+            if (!skipped.length) {return '';}
+            return `
+                <div class="section">
+                    <h3 style="color:#56b6c2;">Not Implemented Tests</h3>
+                    <ul>
+                        ${skipped.map(test => `<li><code>${CoverageCheckWebviewProvider.requirementDataProvider.getNodeById(test)?.label}</code></li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
 
         return `
             <!DOCTYPE html>
@@ -183,10 +198,11 @@ export class CoverageCheckWebviewProvider {
             </head>
             <body>
                 <h2>Coverage Differences</h2>
-                ${renderSideBySide('Folders', diff.missing_folders, diff.extra_folders)}
-                ${renderSideBySide('Files', diff.missing_files, diff.extra_files)}
-                ${renderTestSideBySide('Tests', diff.missing_tests, diff.extra_tests)}
+                ${renderSideBySide('Requirements', diff.missing_folders, diff.extra_folders)}
+                ${renderSideBySide('Tests', diff.missing_files, diff.extra_files)}
+                ${renderTestSideBySide('Test Cases', diff.missing_tests, diff.extra_tests)}
                 ${renderModifiedTests(diff.modified_tests)}
+                ${renderSkippedTests(diff.skipped_tests)}
                 <hr>
             </body>
             </html>
