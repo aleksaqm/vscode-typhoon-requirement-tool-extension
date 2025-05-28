@@ -259,102 +259,16 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 			const outputDir = folderUri[0].fsPath;
 
-			const reqifContent = ReqifFileManager.exportToReqIF(requirementDataProvider.getAllNodes());
-			const tempDir = os.tmpdir();
-			const fileName = `temp_${Date.now()}.reqif`;
-			const tempPath = path.join(tempDir, fileName);
-			fs.writeFileSync(tempPath, reqifContent, 'utf-8');
-	
-			const process = spawn('coverage_check', [tempPath, outputDir]);
-			let result = '';
-			let error = '';
+			const coverageCheckProvider = new CoverageCheckWebviewProvider(requirementDataProvider, outputDir);
+			coverageCheckProvider.generateCoverageReport();
 
-			process.stdout.on('data', (data) => { result += data.toString(); });
-			process.stderr.on('data', (data) => {
-				error += data.toString();
-			});
-			process.on('close', (code) => {
-				if (code === 0) {
-					const diff = JSON.parse(result);
-					console.log(diff);
-					CoverageCheckWebviewProvider.show(diff, requirementDataProvider);
-					changeNodeColors(diff);
-				} else {
-					vscode.window.showErrorMessage(`Coverage check failed. ${error}`);
-				}
-			});
-
-			vscode.commands.executeCommand('setContext', 'typhoonRequirementTool.coverageActive', true);
+			// vscode.commands.executeCommand('setContext', 'typhoonRequirementTool.coverageActive', true);
 			coverageActive = true;
 
 		} catch (err: any) {
 			vscode.window.showErrorMessage(`Unexpected error during test generation: ${err.message}`);
 		}
 	}));
-
-	function changeNodeColors(diff: any) {
-		const allNodes = requirementDataProvider.getRootNodes();
-		function processNode(node: any) {
-			node.iconPath = undefined;
-
-			switch (node.contextValue) {
-				case 'requirement':
-					console.log('requirement ' + node.label);
-					if (diff.missing_folders){
-						for (const folder of diff.missing_folders){
-							const tokens = folder.toLowerCase().replace(/\\/g, '/').split('/');
-							if (tokens[tokens.length - 1] === node.label.replace(' ', '_').toLowerCase()){
-								node.iconPath = new vscode.ThemeIcon('diff-removed', new vscode.ThemeColor('testing.iconFailed'));
-							}
-						}
-					}
-					break;
-				case 'test':
-					const file_name = (node.parent.label + "/test_" + node.label).replace(' ', '_').toLowerCase();
-					if (diff.missing_files){
-						for (const file of diff.missing_files) {
-							if (file.replace(/\\/g, '/').toLowerCase().includes(file_name)){
-								node.iconPath = new vscode.ThemeIcon('diff-removed', new vscode.ThemeColor('testing.iconFailed'));
-							}
-						}
-					}
-					break;
-				case 'testCase':
-					console.log('test case ' + node.label);
-					if (diff.modified_tests){
-						Object.entries(diff.modified_tests).forEach(([file, tests]) => {
-							Object.entries(tests as any).forEach(([id, changes]) => {
-								if (id === node.id){
-									node.iconPath = new vscode.ThemeIcon('diff-modified', new vscode.ThemeColor('testing.iconQueued'));
-									return;
-								}
-							});
-						});
-					}
-					if (diff.missing_tests){
-						Object.entries(diff.missing_tests).forEach(([file, tests]) => {
-							Object.entries(tests as any).forEach(([testName, changes]) => {
-								if (testName === node.label){
-									node.iconPath = new vscode.ThemeIcon('diff-removed', new vscode.ThemeColor('testing.iconFailed'));
-									return;
-								}
-							});
-						});
-					}
-					if (diff.skipped_tests.includes(node.id)) {
-						node.iconPath = new vscode.ThemeIcon('debug-step-over', new vscode.ThemeColor('testing.iconQueued'));
-					}
-					break;
-			}
-
-			if (node.children && node.children.length > 0) {
-				node.children.forEach(processNode);
-			}
-		}
-
-		allNodes.forEach(processNode);
-		requirementDataProvider.refresh();
-	}
 
 }
 

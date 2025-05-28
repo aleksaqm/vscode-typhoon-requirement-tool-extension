@@ -1,23 +1,135 @@
 import * as vscode from 'vscode';
 import { RequirementTreeProvider } from './requirementTreeViewProvider';
 import { Parameter, TestCase } from '../models/testCase';
+import { ReqifFileManager } from '../utils/reqifFileManager';
+import * as os from 'os';
+import * as fs from 'fs';
+import * as path from 'path';
+import { spawn } from 'child_process';
+
 
 export class CoverageCheckWebviewProvider {
-    private static requirementDataProvider: RequirementTreeProvider;
+    private requirementDataProvider: RequirementTreeProvider;
+    private outputDir: string;
+    private panel?: vscode.WebviewPanel;
 
-    
-    static show(diff: any, requirementDataProvider: any) {
-        const panel = vscode.window.createWebviewPanel(
-            'coverageDiff',
-            'Coverage Differences',
-            vscode.ViewColumn.One,
-            { enableScripts: true }
-        );
-        CoverageCheckWebviewProvider.requirementDataProvider = requirementDataProvider;
-        panel.webview.html = CoverageCheckWebviewProvider.getHtml(diff);
-        panel.webview.onDidReceiveMessage(message => {
+    constructor(requirementDataProvide: RequirementTreeProvider, outputDir: string){
+        this.requirementDataProvider = requirementDataProvide;
+        this.outputDir = outputDir;
+    }
+
+    public generateCoverageReport(updateExisting = false){
+        const reqifContent = ReqifFileManager.exportToReqIF(this.requirementDataProvider.getAllNodes());
+        const tempDir = os.tmpdir();
+        const fileName = `temp_${Date.now()}.reqif`;
+        const tempPath = path.join(tempDir, fileName);
+        fs.writeFileSync(tempPath, reqifContent, 'utf-8');
+
+        const process = spawn('coverage_check', [tempPath, this.outputDir]);
+        let result = '';
+        let error = '';
+
+        process.stdout.on('data', (data) => { result += data.toString(); });
+        process.stderr.on('data', (data) => {
+            error += data.toString();
+        });
+        process.on('close', (code) => {
+            if (code === 0) {
+                const diff = JSON.parse(result);
+                console.log(diff);
+                if (updateExisting && this.panel) {
+                    this.panel.webview.html = this.getHtml(diff);
+                } else {
+                    this.show(diff);
+                    this.changeNodeColors(diff);
+                }
+            } else {
+                vscode.window.showErrorMessage(`Coverage check failed. ${error}`);
+            }
+        });
+
+        vscode.commands.executeCommand('setContext', 'typhoonRequirementTool.coverageActive', true);
+    }
+
+    private changeNodeColors(diff: any) {
+        const allNodes = this.requirementDataProvider.getRootNodes();
+        function processNode(node: any) {
+            node.iconPath = undefined;
+
+            switch (node.contextValue) {
+                case 'requirement':
+                    console.log('requirement ' + node.label);
+                    if (diff.missing_folders){
+                        for (const folder of diff.missing_folders){
+                            const tokens = folder.toLowerCase().replace(/\\/g, '/').split('/');
+                            if (tokens[tokens.length - 1] === node.label.replace(' ', '_').toLowerCase()){
+                                node.iconPath = new vscode.ThemeIcon('diff-removed', new vscode.ThemeColor('testing.iconFailed'));
+                            }
+                        }
+                    }
+                    break;
+                case 'test':
+                    const file_name = (node.parent.label + "/test_" + node.label).replace(' ', '_').toLowerCase();
+                    if (diff.missing_files){
+                        for (const file of diff.missing_files) {
+                            if (file.replace(/\\/g, '/').toLowerCase().includes(file_name)){
+                                node.iconPath = new vscode.ThemeIcon('diff-removed', new vscode.ThemeColor('testing.iconFailed'));
+                            }
+                        }
+                    }
+                    break;
+                case 'testCase':
+                    console.log('test case ' + node.label);
+                    if (diff.modified_tests){
+                        Object.entries(diff.modified_tests).forEach(([file, tests]) => {
+                            Object.entries(tests as any).forEach(([id, changes]) => {
+                                if (id === node.id){
+                                    node.iconPath = new vscode.ThemeIcon('diff-modified', new vscode.ThemeColor('testing.iconQueued'));
+                                    return;
+                                }
+                            });
+                        });
+                    }
+                    if (diff.missing_tests){
+                        Object.entries(diff.missing_tests).forEach(([file, tests]) => {
+                            Object.entries(tests as any).forEach(([testName, changes]) => {
+                                if (testName === node.label){
+                                    node.iconPath = new vscode.ThemeIcon('diff-removed', new vscode.ThemeColor('testing.iconFailed'));
+                                    return;
+                                }
+                            });
+                        });
+                    }
+                    if (diff.skipped_tests.includes(node.id)) {
+                        node.iconPath = new vscode.ThemeIcon('debug-step-over', new vscode.ThemeColor('testing.iconQueued'));
+                    }
+                    break;
+            }
+
+            if (node.children && node.children.length > 0) {
+                node.children.forEach(processNode);
+            }
+        }
+
+        allNodes.forEach(processNode);
+        this.requirementDataProvider.refresh();
+    }
+
+
+    public show(diff: any) {
+        if (!this.panel) {
+            this.panel = vscode.window.createWebviewPanel(
+                'coverageDiff',
+                'Coverage Differences',
+                vscode.ViewColumn.One,
+                { enableScripts: true }
+            );
+            this.panel.onDidDispose(() => { this.panel = undefined; });
+        }
+        this.panel.webview.html = this.getHtml(diff);
+        this.panel.webview.onDidReceiveMessage(message => {
             if (message.command === 'resolveConflict') {
-                let node = CoverageCheckWebviewProvider.requirementDataProvider.getNodeById(message.id);
+                let node = this.requirementDataProvider.getNodeById(message.id);
                 if (node && node instanceof TestCase) {
                     if (message.chosen){
                         if (message.chosen.name){
@@ -79,13 +191,15 @@ export class CoverageCheckWebviewProvider {
                             node.steps = message.chosen.steps;
                         }
                     }
-                    CoverageCheckWebviewProvider.requirementDataProvider.updateNode(node);
-                }                
+                    this.requirementDataProvider.updateNode(node);
+                }  
+                vscode.window.showInformationMessage(`Conflict resolved!`);
+                this.generateCoverageReport(true);              
             }
         });
     }
 
-    static getHtml(diff: any): string {
+    public getHtml(diff: any): string {
         function renderSideBySide(title: string, missing: string[] = [], extra: string[] = [], colorMissing = "#e06c75", colorExtra = "#e5c07b") {
             const maxLen = Math.max(missing.length, extra.length, 1);
             return `
@@ -169,7 +283,7 @@ export class CoverageCheckWebviewProvider {
             `;
         }
 
-        function renderModifiedTests(modified: Record<string, any>) {
+        function renderModifiedTests(modified: Record<string, any>, requirementDataProvider: RequirementTreeProvider) {
             if (!modified || Object.keys(modified).length === 0) { return ''; }
             return `
                 <div class="section">
@@ -181,8 +295,7 @@ export class CoverageCheckWebviewProvider {
                                 <ul>
                                     ${Object.entries(tests).map(([id, changes]) => `
                                         <li>
-                                            <b>${CoverageCheckWebviewProvider.requirementDataProvider.getNodeById(id)?.label}</b>
-                                            <button onclick="openResolveModal('${file}', '${id}', '${encodeURIComponent(JSON.stringify(changes))}')">Resolve</button>
+                                            <b>${requirementDataProvider.getNodeById(id)?.label}</b>
                                             <ul>
                                                 ${Object.entries(changes as Record<string, any>).map(([param, values]) => `
                                                     <li>
@@ -193,6 +306,7 @@ export class CoverageCheckWebviewProvider {
                                                     </li>
                                                 `).join('')}
                                             </ul>
+                                            <button class="vscode-button"  onclick="openResolveModal('${file}', '${id}', '${encodeURIComponent(JSON.stringify(changes))}')" style="background:var(--vscode-button-background); color:var(--vscode-button-foreground); border:none; border-radius:3px; padding:6px 16px; font-weight:500; cursor:pointer;">Resolve This Conflict</button>
                                         </li>
                                     `).join('')}
                                 </ul>
@@ -336,13 +450,13 @@ export class CoverageCheckWebviewProvider {
             `;
         }
 
-        function renderSkippedTests(skipped: string[] = []) {
+        function renderSkippedTests(skipped: string[] = [], requirementDataProvider: RequirementTreeProvider) {
             if (!skipped.length) {return '';}
             return `
                 <div class="section">
                     <h3 style="color:#56b6c2;">Not Implemented Tests</h3>
                     <ul>
-                        ${skipped.map(test => `<li><code>${CoverageCheckWebviewProvider.requirementDataProvider.getNodeById(test)?.label}</code></li>`).join('')}
+                        ${skipped.map(test => `<li><code>${requirementDataProvider.getNodeById(test)?.label}</code></li>`).join('')}
                     </ul>
                 </div>
             `;
@@ -422,8 +536,8 @@ export class CoverageCheckWebviewProvider {
                 ${renderSideBySide('Requirements', diff.missing_folders, diff.extra_folders)}
                 ${renderSideBySide('Tests', diff.missing_files, diff.extra_files)}
                 ${renderTestSideBySide('Test Cases', diff.missing_tests, diff.extra_tests)}
-                ${renderModifiedTests(diff.modified_tests)}
-                ${renderSkippedTests(diff.skipped_tests)}
+                ${renderModifiedTests(diff.modified_tests, this.requirementDataProvider)}
+                ${renderSkippedTests(diff.skipped_tests, this.requirementDataProvider)}
                 <hr>
             </body>
             </html>
