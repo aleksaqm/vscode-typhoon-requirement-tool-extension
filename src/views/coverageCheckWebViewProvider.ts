@@ -1,9 +1,11 @@
 import * as vscode from 'vscode';
 import { RequirementTreeProvider } from './requirementTreeViewProvider';
-import { TestCase } from '../models/testCase';
+import { Parameter, TestCase } from '../models/testCase';
 
 export class CoverageCheckWebviewProvider {
     private static requirementDataProvider: RequirementTreeProvider;
+
+    
     static show(diff: any, requirementDataProvider: any) {
         const panel = vscode.window.createWebviewPanel(
             'coverageDiff',
@@ -13,20 +15,68 @@ export class CoverageCheckWebviewProvider {
         );
         CoverageCheckWebviewProvider.requirementDataProvider = requirementDataProvider;
         panel.webview.html = CoverageCheckWebviewProvider.getHtml(diff);
-
         panel.webview.onDidReceiveMessage(message => {
             if (message.command === 'resolveConflict') {
-                var node = CoverageCheckWebviewProvider.requirementDataProvider.getNodeById(message.id);
+                let node = CoverageCheckWebviewProvider.requirementDataProvider.getNodeById(message.id);
                 if (node && node instanceof TestCase) {
                     if (message.chosen){
                         if (message.chosen.name){
                             node.label = message.chosen.name;
+                            node.name = message.chosen.name;
                         }
                         if (message.chosen.scenario){
                             node.scenario = message.chosen.scenario;
+                            node.description = message.chosen.scenario;
                         }
                         if (message.chosen.parameters){
-                            console.log('malo jaca logika jer samo imena gleda');
+                            console.log(message.chosen.parameters);
+
+                            const newParams = message.chosen.parameters;
+                            if (newParams[0]){
+                                var newParamNames : string[] = [];
+                                for (let key in newParams) {
+                                    newParamNames.push(newParams[key]);
+                                }
+
+                                node.parameters = node.parameters.filter(param => newParamNames.includes(param.name));
+
+                                newParamNames.forEach(name => {
+                                    if (!node.parameters.some(param => param.name === name)){
+                                        node.parameters.push(new Parameter(name));
+                                    }
+                                });
+                            }else{
+                                console.log("menjaj vrednosti");
+                                node.parameters.forEach(parameter => {
+                                    console.log(newParams);
+                                    var newParameterValue = newParams[parameter.name];
+                                    if (newParameterValue){
+                                        parameter.value = newParameterValue;
+                                        if (newParameterValue.length > 0){
+                                            if (typeof newParameterValue[0] === "number") {
+                                                parameter.type = Number.isInteger(newParameterValue[0]) ? "int" : "float";
+                                            }
+                                            else if (typeof newParameterValue[0] === "object"){
+                                                if (Array.isArray(newParameterValue[0])) {
+                                                    parameter.type = 'array';
+                                                } 
+                                                parameter.value = [];
+                                                newParameterValue.forEach((singleValue: any[]) => {
+                                                    parameter.value.push(JSON.stringify(singleValue));
+                                                });
+                                            }
+                                             else {
+                                                parameter.type = typeof newParameterValue[0];
+                                            }
+                                        }
+                                    }
+                                });
+                                
+                                console.log(node.parameters);
+                            }
+                        }
+                        if (message.chosen.steps){
+                            node.steps = message.chosen.steps;
                         }
                     }
                     CoverageCheckWebviewProvider.requirementDataProvider.updateNode(node);
@@ -86,7 +136,24 @@ export class CoverageCheckWebviewProvider {
         }
 
         function renderParameterSets(paramSets: any[]) {
-            if (!paramSets || !paramSets.length) {return '';}
+            if (!paramSets || !paramSets.length) { return ''; }
+            if (Array.isArray(paramSets[0])) {
+                const maxLen = Math.max(...paramSets.map(arr => arr.length));
+                const headers = Array.from({ length: maxLen }, (_, i) => `Param${i + 1}`);
+                return `
+                    <table class="vscode-table">
+                        <thead>
+                            <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+                        </thead>
+                        <tbody>
+                            ${paramSets.map(set => `
+                                <tr>${headers.map((_, i) => `<td>${set[i] !== undefined ? set[i] : ''}</td>`).join('')}</tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            }
+
             const allKeys = Array.from(new Set(paramSets.flatMap(p => Object.keys(p))));
             return `
                 <table class="vscode-table">
@@ -155,21 +222,47 @@ export class CoverageCheckWebviewProvider {
                             const currentTest = (window.currentTests && window.currentTests[file] && window.currentTests[file][id]) || {};
                             let html = '';
                             for (const param in changes) {
-                                const newValue = changes[param][0];
-                                const oldValue = changes[param][1];
-                                html += \`
-                                    <div style="margin-bottom:16px;">
-                                        <div style="font-weight:500; margin-bottom:4px;">\${param}</div>
-                                        <label style="display:flex; align-items:center; gap:6px; margin-bottom:2px; cursor:pointer;">
-                                            <input type="radio" name="choice_\${param}" value="new" checked style="accent-color:var(--vscode-button-background);">
-                                            <span style="color:var(--vscode-editor-foreground);">New: \${formatValue(newValue)}</span>
-                                        </label>
-                                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
-                                            <input type="radio" name="choice_\${param}" value="old" style="accent-color:var(--vscode-button-secondaryBackground);">
-                                            <span style="color:var(--vscode-editor-foreground);">Current: \${formatValue(oldValue)}</span>
-                                        </label>
-                                    </div>
-                                \`;
+                                if (param === 'parameters' && typeof changes[param][0] === 'object' && changes[param][0] !== null) {
+                                    const newParams = changes[param][0];
+                                    const oldParams = changes[param][1];
+                                    // Get all unique parameter names
+                                    const allParamNames = Array.from(new Set([
+                                        ...Object.keys(newParams || {}),
+                                        ...Object.keys(oldParams || {})
+                                    ]));
+                                    allParamNames.forEach(pname => {
+                                        html += \`
+                                            <div style="margin-bottom:16px;">
+                                                <div style="font-weight:500; margin-bottom:4px;">\${pname}</div>
+                                                <label style="display:flex; align-items:center; gap:6px; margin-bottom:2px; cursor:pointer;">
+                                                    <input type="radio" name="choice_param_\${pname}" value="new" checked style="accent-color:var(--vscode-button-background);">
+                                                    <span style="color:var(--vscode-editor-foreground);">New: <code>\${JSON.stringify({ [pname]: newParams[pname] })}</code></span>
+                                                </label>
+                                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                                                    <input type="radio" name="choice_param_\${pname}" value="old" style="accent-color:var(--vscode-button-secondaryBackground);">
+                                                    <span style="color:var(--vscode-editor-foreground);">Current: <code>\${JSON.stringify({ [pname]: oldParams[pname] })}</code></span>
+                                                </label>
+                                            </div>
+                                        \`;
+                                    });
+                                } else {
+                                    // For other fields, keep the old logic
+                                    const newValue = changes[param][0];
+                                    const oldValue = changes[param][1];
+                                    html += \`
+                                        <div style="margin-bottom:16px;">
+                                            <div style="font-weight:500; margin-bottom:4px;">\${param}</div>
+                                            <label style="display:flex; align-items:center; gap:6px; margin-bottom:2px; cursor:pointer;">
+                                                <input type="radio" name="choice_\${param}" value="new" checked style="accent-color:var(--vscode-button-background);">
+                                                <span style="color:var(--vscode-editor-foreground);">New: \${formatValue(newValue)}</span>
+                                            </label>
+                                            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                                                <input type="radio" name="choice_\${param}" value="old" style="accent-color:var(--vscode-button-secondaryBackground);">
+                                                <span style="color:var(--vscode-editor-foreground);">Current: \${formatValue(oldValue)}</span>
+                                            </label>
+                                        </div>
+                                    \`;
+                                }
                             }
                             document.getElementById('modal-content').innerHTML = html;
                             document.getElementById('resolve-modal').style.display = 'block';
@@ -194,13 +287,32 @@ export class CoverageCheckWebviewProvider {
                         function submitResolution() {
                             const chosen = {};
                             const modal = document.getElementById('modal-content');
-                            Array.from(modal.querySelectorAll('input[type=radio]:checked')).forEach(input => {
-                                const param = input.name.replace('choice_', '');
-                                const valueType = input.value;
-                                const changes = JSON.parse(decodeURIComponent(currentResolve.changesStr));
-                                chosen[param] = valueType === 'new' ? changes[param][0] : changes[param][1];
+                            const changes = JSON.parse(decodeURIComponent(currentResolve.changesStr));
+                            // Handle parameters specially
+                            if (changes.parameters && typeof changes.parameters[0] === 'object') {
+                                const newParams = changes.parameters[0];
+                                const oldParams = changes.parameters[1];
+                                const allParamNames = Array.from(new Set([
+                                    ...Object.keys(newParams || {}),
+                                    ...Object.keys(oldParams || {})
+                                ]));
+                                chosen.parameters = {};
+                                allParamNames.forEach(pname => {
+                                    const selected = modal.querySelector(\`input[name="choice_param_\${pname}"]:checked\`);
+                                    if (selected) {
+                                        chosen.parameters[pname] = selected.value === 'new' ? newParams[pname] : oldParams[pname];
+                                    }
+                                });
+                            }
+                            // Handle other fields as before
+                            Object.keys(changes).forEach(param => {
+                                if (param === 'parameters') return;
+                                const selected = modal.querySelector(\`input[name="choice_\${param}"]:checked\`);
+                                if (selected) {
+                                    chosen[param] = selected.value === 'new' ? changes[param][0] : changes[param][1];
+                                }
                             });
-                            console.log(chosen);
+                            chosen.id = currentResolve.id;
                             vscode.postMessage({
                                 command: 'resolveConflict',
                                 file: currentResolve.file,

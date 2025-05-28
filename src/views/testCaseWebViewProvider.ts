@@ -115,7 +115,7 @@ export class TestCaseWebviewProvider {
                             <vscode-option value="string">String</vscode-option>
                             <vscode-option value="int">Integer</vscode-option>
                             <vscode-option value="float">Float</vscode-option>
-                            <vscode-option value="bool">Boolean</vscode-option>
+                            <vscode-option value="boolean">Boolean</vscode-option>
                             <vscode-option value="array">Array</vscode-option>
                         </vscode-dropdown>
                         <vscode-text-field id="parameterValue" placeholder="Parameter Value"></vscode-text-field>
@@ -213,7 +213,7 @@ export class TestCaseWebviewProvider {
                                 });
                                 return;
                             }
-                            if (type === 'bool'){
+                            if (type === 'boolean'){
                                 value = value.toLowerCase();
                                 console.log(value);
                             }
@@ -300,7 +300,7 @@ export class TestCaseWebviewProvider {
                                 return Number.isInteger(Number(value)); // Checks if the value is an integer
                             case 'float':
                                 return !isNaN(value) && Number(value) === parseFloat(value); // Checks if the value is a float
-                            case 'bool':
+                            case 'boolean':
                                 return value.toLowerCase() === 'true' || value.toLowerCase() === 'false'; // Matches "true" or "false" (case-insensitive)
                             case 'string':
                                 return typeof value === 'string'; // Always true for strings

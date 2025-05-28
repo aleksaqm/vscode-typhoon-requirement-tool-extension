@@ -232,7 +232,9 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
             const testCaseNode = this.requirements.find(req => req.id === node.id);
             if (testCaseNode && testCaseNode instanceof TestCase) {
                 testCaseNode.label = updatedTestCase.name;
+                testCaseNode.name = updatedTestCase.name;
                 testCaseNode.scenario = updatedTestCase.scenario;
+                testCaseNode.description = updatedTestCase.scenario;
                 testCaseNode.steps = updatedTestCase.steps;
                 testCaseNode.prerequisites = updatedTestCase.prerequisites;
                 testCaseNode.testData = updatedTestCase.testData;

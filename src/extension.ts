@@ -212,6 +212,9 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 			const outputDir = folderUri[0].fsPath;
 
+			console.log("AAAAAAAAAAAAAAA");
+			console.log(requirementDataProvider.getAllNodes());
+
 			const reqifContent = ReqifFileManager.exportToReqIF(requirementDataProvider.getAllNodes());
 			const fileName = `requirements_${Date.now()}.reqif`;
 			const reqifPath = path.join(outputDir, fileName);
