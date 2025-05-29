@@ -3,7 +3,7 @@ import { TreeNode } from '../models/treeNode';
 import { Requirement } from '../models/requirement';
 import { getUniqueId } from '../utils/idGenerator';
 import { TestNode } from '../models/test';
-import { TestCase } from '../models/testCase';
+import { Parameter, TestCase } from '../models/testCase';
 import { RequirementWebviewProvider } from './requirementWebViewProvider';
 import { TestWebviewProvider } from './testWebViewProvider';
 import { TestCaseWebviewProvider } from './testCaseWebViewProvider';
@@ -60,6 +60,20 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
 
     getNodeById(id: string): TreeNode | undefined {
         return this.requirements.find(node => node.id === id);
+    }
+
+    deleteById(id: string){
+        const index = this.requirements.findIndex(obj => obj.id === id);
+        const testCase : TreeNode = this.requirements[index];
+        if (testCase.parent && testCase.parent.children){
+            const childIndex : number = testCase.parent?.children.findIndex(obj => obj.id === id);
+            testCase.parent?.children.splice(childIndex, 1);
+        }
+        if (index > -1) {
+            this.requirements.splice(index, 1);
+        }
+        this.updateLevels();
+        this.refresh();
     }
 
     updateNode(node: TreeNode): void{
@@ -162,12 +176,12 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         });
     }
 
-    async deleteNode(node: TreeNode): Promise<void> {
+    async deleteNode(node: TreeNode): Promise<Boolean> {
         const confirm = await vscode.window.showQuickPick(['Yes', 'No'], {
             placeHolder: `Delete requirement "${node.label}"?`,
         });
         if (confirm === 'No') {
-            return;
+            return false;
         }
     
         if (node.parent) {
@@ -188,6 +202,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         this.updateLevels();
         this.refresh();
         this.onNodeSelected(null);
+        return true;
     }
 
     deleteElement(node: TreeNode): void {
@@ -245,6 +260,104 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
             this.onNodeSelected(testCaseNode!);
         });
     }
+
+    addExtraRequirement(nodeNames: string[], type: string){
+        let forLooking = this.getRootNodes();
+        let parent = null;
+        for (var i = 0; i< nodeNames.length; i += 1){
+            const node = forLooking.find((node) => node.label.replace(" ", "_") === nodeNames[i]);
+            if (!node){
+                if (i === nodeNames.length-1){
+                    break;
+                }else{
+                    const newRequirement = new Requirement(getUniqueId(), nodeNames[i], "Default description", "Medium", "Draft");
+                    this.simpleAddNode(newRequirement, parent);
+                    parent = newRequirement;
+                    forLooking = [];
+                    continue;
+                }
+            }
+            parent = node;
+            forLooking = node.children;
+        }
+        const node = forLooking.find((node) => node.label.replace(" ", "_") === nodeNames[i]);
+        if (node || i === nodeNames.length){
+            return node;
+        }
+        if (type === 'requirement'){
+            const newRequirement = new Requirement(getUniqueId(), nodeNames[i], "Default description", "Medium", "Draft");
+            this.simpleAddNode(newRequirement, parent);
+            return newRequirement;
+        }
+        else if (type === 'test'){
+            var testName = nodeNames[i];
+            if (testName.startsWith("test_")){
+                testName = testName.slice(5);
+            }
+            if (testName.endsWith(".py")){
+                testName = testName.slice(0,-3);
+            }
+            const node = forLooking.find((node) => node.label.replace(" ", "_") === testName);
+            if (node){
+                return node;
+            }
+            const newTest = new TestNode(getUniqueId(), testName, "Default description");
+            this.simpleAddNode(newTest, parent);
+            return newTest;
+        }
+    }
+
+
+    async deleteMissingRequirement(nodeNames: string[]){
+        let forLooking = this.getRootNodes();
+        let nodeForDelete = null;
+        console.log(nodeNames);
+        for (var i = 0; i< nodeNames.length; i+=1){
+            const node = forLooking.find((node) => node.label.replace(" ", "_") === nodeNames[i]);
+            if (!node){
+                vscode.window.showErrorMessage("Requirement doesn't exist");
+                break;
+            }
+            if (i === nodeNames.length -1){
+                nodeForDelete = node;
+            }else{
+                forLooking = node.children;
+            }
+        }
+        if (nodeForDelete){
+            const compleated = await this.deleteNode(nodeForDelete);
+            if (compleated){
+                vscode.window.showInformationMessage(`Conflict resolved!`);
+            }
+        }
+    }
+
+    addExtraTestCase(nodeNames: string[], testCaseData: any, testName: string, parameters : Parameter[]){
+        const createdTest = this.addExtraRequirement(nodeNames, 'test');
+        if (createdTest){
+            const node = createdTest.children.find((node) => node.label.replace(" ", "_") === testName);
+            if (node){
+                vscode.window.showErrorMessage(`There is test case with same name in ${createdTest.label}`);
+                return;
+            }
+            const newTestCase = new TestCase(getUniqueId(), testName, testCaseData['scenario'], [], [], [], [], parameters);
+            createdTest?.children.push(newTestCase);
+            newTestCase.parent = createdTest;
+            this.requirements.push(newTestCase);
+            this.updateLevels();
+            this.refresh();
+        }
+    }
+
+    
+    simpleAddNode(newRequirement: TreeNode, parent : any){
+        newRequirement.parent = parent;
+        parent?.children.push(newRequirement);
+        this.requirements.push(newRequirement);
+        this.updateLevels();
+        this.refresh();
+    }
+
 
 
     exportToCSV(): string {

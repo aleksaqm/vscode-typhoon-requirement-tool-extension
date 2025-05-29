@@ -12,6 +12,7 @@ export class CoverageCheckWebviewProvider {
     private requirementDataProvider: RequirementTreeProvider;
     private outputDir: string;
     private panel?: vscode.WebviewPanel;
+    private diff?: any;
 
     constructor(requirementDataProvide: RequirementTreeProvider, outputDir: string){
         this.requirementDataProvider = requirementDataProvide;
@@ -37,6 +38,8 @@ export class CoverageCheckWebviewProvider {
             if (code === 0) {
                 const diff = JSON.parse(result);
                 console.log(diff);
+                this.diff = diff;
+
                 if (updateExisting && this.panel) {
                     this.panel.webview.html = this.getHtml(diff);
                 } else {
@@ -127,7 +130,7 @@ export class CoverageCheckWebviewProvider {
             this.panel.onDidDispose(() => { this.panel = undefined; });
         }
         this.panel.webview.html = this.getHtml(diff);
-        this.panel.webview.onDidReceiveMessage(message => {
+        this.panel.webview.onDidReceiveMessage(async message => {
             if (message.command === 'resolveConflict') {
                 let node = this.requirementDataProvider.getNodeById(message.id);
                 if (node && node instanceof TestCase) {
@@ -177,7 +180,7 @@ export class CoverageCheckWebviewProvider {
                                                     parameter.value.push(JSON.stringify(singleValue));
                                                 });
                                             }
-                                             else {
+                                            else {
                                                 parameter.type = typeof newParameterValue[0];
                                             }
                                         }
@@ -196,11 +199,154 @@ export class CoverageCheckWebviewProvider {
                 vscode.window.showInformationMessage(`Conflict resolved!`);
                 this.generateCoverageReport(true);              
             }
+            if(message.command === 'deleteRequirement'){
+                var requirementPath = message.value;
+                requirementPath = requirementPath.replace(/\\/g, '/').toLowerCase();
+                const requirements = requirementPath.split('/');
+                await this.requirementDataProvider.deleteMissingRequirement(requirements);
+                // vscode.window.showInformationMessage(`Conflict resolved!`);
+                this.generateCoverageReport(true);
+            }
+            if(message.command === 'deleteTest'){
+                var testPath = message.value;
+                testPath = testPath.replace(/\\/g, '/').toLowerCase();
+                const requirements = testPath.split('/');
+                var testName = requirements[requirements.length-1];
+                if (testName.startsWith("test_")){
+                    testName = testName.slice(5);
+                }
+                if (testName.endsWith(".py")){
+                    testName = testName.slice(0,-3);
+                }
+                requirements[requirements.length-1] = testName;
+                this.requirementDataProvider.deleteMissingRequirement(requirements);
+                // vscode.window.showInformationMessage(`Conflict resolved!`);
+                this.generateCoverageReport(true);
+            }
+            if(message.command === 'deleteTestCase'){
+                const testName = message.value;
+                const missingTests = this.diff['missing_tests'];
+                let id = null;
+                Object.entries(missingTests).forEach(
+                    ([key, value] : [any, any]) => {
+                        if (value[testName]){
+                            if (value[testName]['id']){
+                                id = value[testName]['id'];
+                                this.requirementDataProvider.deleteById(id);
+                                return;
+                            }
+                        }
+                    }
+                );
+                vscode.window.showInformationMessage(`Conflict resolved!`);
+                this.generateCoverageReport(true);
+            }
+            if(message.command === 'addRequirement'){                                               //make it clean
+                const confirm = await vscode.window.showQuickPick(['Yes', 'No'], {
+                    placeHolder: `Are you sure you want to add requirement "${message.value}"?`,
+                });
+                if (confirm === 'No') {
+                    return;
+                }
+                var requirementPath = message.value;
+                requirementPath = requirementPath.replace(/\\/g, '/').toLowerCase();
+                const requirements = requirementPath.split('/');
+                this.requirementDataProvider.addExtraRequirement(requirements, 'requirement');
+                vscode.window.showInformationMessage(`Conflict resolved!`);
+                this.generateCoverageReport(true);
+            }
+            if(message.command === 'addTest'){
+                const confirm = await vscode.window.showQuickPick(['Yes', 'No'], {
+                    placeHolder: `Are you sure you want to add test "${message.value}"?`,
+                });
+                if (confirm === 'No') {
+                    return;
+                }
+                var testPath = message.value;
+                testPath = testPath.replace(/\\/g, '/').toLowerCase();
+                const nodeNames = testPath.split('/');
+                this.requirementDataProvider.addExtraRequirement(nodeNames, 'test');
+                vscode.window.showInformationMessage(`Conflict resolved!`);
+                this.generateCoverageReport(true);
+            }
+            if(message.command === 'addTestCase'){
+                const confirm = await vscode.window.showQuickPick(['Yes', 'No'], {
+                    placeHolder: `Are you sure you want to add test case "${message.value}"?`,
+                });
+                if (confirm === 'No') {
+                    return;
+                }
+                const testName = message.value;
+                const extraTests = this.diff['extra_tests'];
+                let id = null;
+                Object.entries(extraTests).forEach(
+                    ([key, value] : [any, any]) => {
+                        if (value[testName]){
+                            if (value[testName]['id']){
+                                id = value[testName]['id'];
+                                const node = this.requirementDataProvider.getNodeById(id);
+                                if (node){
+                                    console.log("konfilit");
+                                    vscode.window.showErrorMessage("Test case with this id already exists");
+                                    return;
+                                }
+                            }
+                            key = key.replace(/\\/g, '/').toLowerCase();
+                            const requirements = key.split('/');
+                            const testCaseData = value[testName];
+                            let parameters: Parameter[] = [];
+                            Object.entries(testCaseData['parameters']).forEach(
+                                ([key, value] : [string, any]) => {
+                                    const parameterName = key;
+                                    let parameterType : string = '';
+                                    let parameterValue = value;
+                                    if(value.length > 0){
+                                        if (typeof value[0] === "number") {
+                                            parameterType = Number.isInteger(value[0]) ? "int" : "float";
+                                        }
+                                        else if (typeof value[0] === "object"){
+                                            if (Array.isArray(value[0])) {
+                                                parameterType = 'array';
+                                            } 
+                                            parameterValue = [];
+                                            value.forEach((singleValue: any[]) => {
+                                                parameterValue.push(JSON.stringify(singleValue));
+                                            });
+                                        }
+                                        else {
+                                            parameterType = typeof value[0];
+                                        }
+                                    }
+                                    parameters.push(new Parameter(parameterName, parameterType, parameterValue));
+                                }
+                            );   
+                            this.requirementDataProvider.addExtraTestCase(requirements, testCaseData, testName, parameters);     
+                            vscode.window.showInformationMessage(`Conflict resolved!`);
+                            this.generateCoverageReport(true);                               
+                        }
+                       
+                    }
+                );
+                
+            }
         });
     }
 
     public getHtml(diff: any): string {
-        function renderSideBySide(title: string, missing: string[] = [], extra: string[] = [], colorMissing = "#e06c75", colorExtra = "#e5c07b") {
+
+        function renderSideBySide(
+            title: string,
+            missing: string[] = [],
+            extra: string[] = [],
+            colorMissing = "#e06c75",
+            colorExtra = "#98c379"
+        ) {
+            const typeMap: Record<string, { missing: string; extra: string }> = {
+                'Requirements': { missing: 'missing', extra: 'extra' },
+                'Tests': { missing: 'missing-test', extra: 'extra-test' },
+            };
+            const types = typeMap[title] || { missing: 'missing', extra: 'extra' };
+
             const maxLen = Math.max(missing.length, extra.length, 1);
             return `
                 <div class="side-by-side-section">
@@ -209,15 +355,31 @@ export class CoverageCheckWebviewProvider {
                         <div class="side-by-side-header" style="color:${colorMissing};">Missing</div>
                         <div class="side-by-side-header" style="color:${colorExtra};">Extra</div>
                         ${Array.from({ length: maxLen }).map((_, i) => `
-                            <div class="side-by-side-cell">${missing[i] ? `<code>${missing[i]}</code>` : '<span class="muted">None</span>'}</div>
-                            <div class="side-by-side-cell">${extra[i] ? `<code>${extra[i]}</code>` : '<span class="muted">None</span>'}</div>
+                            <div class="side-by-side-cell">
+                                ${missing[i]
+                                    ? `<code>${missing[i]}</code>
+                                    <button class="vscode-button delete-btn" data-type="${types.missing}" data-value="${encodeURIComponent(missing[i])}" style="background:#e06c75; color:#fff; border:none; border-radius:3px; margin-left:8px; cursor:pointer;">Delete</button>`
+                                    : '<span class="muted">None</span>'}
+                            </div>
+                            <div class="side-by-side-cell">
+                                ${extra[i]
+                                    ? `<code>${extra[i]}</code>
+                                    <button class="vscode-button add-btn" data-type="${types.extra}" data-value="${encodeURIComponent(extra[i])}" style="background:#98c379; color:#fff; border:none; border-radius:3px; margin-left:8px; cursor:pointer;">Add</button>`
+                                    : '<span class="muted">None</span>'}
+                            </div>
                         `).join('')}
                     </div>
                 </div>
             `;
         }
 
-        function renderTestSideBySide(title: string, missingObj: Record<string, any>, extraObj: Record<string, any>, colorMissing = "#e06c75", colorExtra = "#e5c07b") {
+        function renderTestSideBySide(
+            title: string,
+            missingObj: Record<string, any>,
+            extraObj: Record<string, any>,
+            colorMissing = "#e06c75",
+            colorExtra = "#98c379"
+        ) {
             const missingFiles = Object.keys(missingObj || {}).filter(
                 file => missingObj[file] && Object.keys(missingObj[file]).length > 0
             );
@@ -233,10 +395,16 @@ export class CoverageCheckWebviewProvider {
                         <div class="side-by-side-header" style="color:${colorExtra};">Extra</div>
                         ${Array.from({ length: maxLen }).map((_, i) => `
                             <div class="side-by-side-cell">
-                                ${missingFiles[i] ? `<code>${missingFiles[i]}</code>${renderTestNames(missingObj[missingFiles[i]])}` : '<span class="muted">None</span>'}
+                                ${missingFiles[i]
+                                    ? `<code>${missingFiles[i]}</code>
+                                    ${renderTestNamesWithButtons(missingObj[missingFiles[i]], 'missing-test-case', missingFiles[i])}`
+                                    : '<span class="muted">None</span>'}
                             </div>
                             <div class="side-by-side-cell">
-                                ${extraFiles[i] ? `<code>${extraFiles[i]}</code>${renderTestNames(extraObj[extraFiles[i]])}` : '<span class="muted">None</span>'}
+                                ${extraFiles[i]
+                                    ? `<code>${extraFiles[i]}</code>
+                                    ${renderTestNamesWithButtons(extraObj[extraFiles[i]], 'extra-test-case', extraFiles[i])}`
+                                    : '<span class="muted">None</span>'}
                             </div>
                         `).join('')}
                     </div>
@@ -244,9 +412,19 @@ export class CoverageCheckWebviewProvider {
             `;
         }
 
-        function renderTestNames(tests: any) {
-            if (!tests || Object.keys(tests).length === 0) {return '';};
-            return `<ul>${Object.keys(tests).map(name => `<li>${name}</li>`).join('')}</ul>`;
+        function renderTestNamesWithButtons(tests: any, btnType: string, parent: string) {
+            if (!tests || Object.keys(tests).length === 0) { return ''; }
+            return `<ul>
+                ${Object.keys(tests).map(name =>
+                    `<li>
+                        ${name}
+                        <button class="vscode-button add-btn" data-type="${btnType}" data-parent="${encodeURIComponent(parent)}" data-value="${encodeURIComponent(name)}"
+                            style="background:${btnType.includes('missing') ? '#e06c75' : '#98c379'}; color:#fff; border:none; border-radius:3px; margin-left:8px; cursor:pointer;">
+                            ${btnType.includes('missing') ? 'Delete' : 'Add'}
+                        </button>
+                    </li>`
+                ).join('')}
+            </ul>`;
         }
 
         function renderParameterSets(paramSets: any[]) {
@@ -445,6 +623,25 @@ export class CoverageCheckWebviewProvider {
                             }
                             return '<code>' + String(val) + '</code>';
                         }
+
+                        document.addEventListener('click', function(e) {
+                            if (e.target.classList.contains('delete-btn') || e.target.classList.contains('add-btn')) {
+                                const type = e.target.getAttribute('data-type');
+                                const value = decodeURIComponent(e.target.getAttribute('data-value'));
+                                const parent = e.target.getAttribute('data-parent') ? decodeURIComponent(e.target.getAttribute('data-parent')) : null;
+                                vscode.postMessage({
+                                    command: type === 'missing' ? 'deleteRequirement'
+                                            : type === 'extra' ? 'addRequirement'
+                                            : type === 'missing-test' ? 'deleteTest'
+                                            : type === 'extra-test' ? 'addTest'
+                                            : type === 'missing-test-case' ? 'deleteTestCase'
+                                            : type === 'extra-test-case' ? 'addTestCase'
+                                            : '',
+                                    value,
+                                    parent
+                                });
+                            }
+                        });
                     </script>
                 </div>
             `;
@@ -456,7 +653,7 @@ export class CoverageCheckWebviewProvider {
                 <div class="section">
                     <h3 style="color:#56b6c2;">Not Implemented Tests</h3>
                     <ul>
-                        ${skipped.map(test => `<li><code>${requirementDataProvider.getNodeById(test)?.label}</code></li>`).join('')}
+                        ${skipped.map(test => `<li><code>${test}</code></li>`).join('')}
                     </ul>
                 </div>
             `;
