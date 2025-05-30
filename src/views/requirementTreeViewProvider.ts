@@ -76,6 +76,15 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         this.refresh();
     }
 
+    getNodePath(node: TreeNode){
+        let pathParts: string[] = [node.label.replace(" ", "_")];
+        while (node.parent){
+            pathParts.unshift(node.parent.label.replace(" ", "_"));
+            node = node.parent;
+        }
+        return pathParts.join('/');
+    }
+
     updateNode(node: TreeNode): void{
         const index = this.requirements.findIndex(req => req.id === node.id);
         if (index !== -1) {
@@ -308,10 +317,9 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
     }
 
 
-    async deleteMissingRequirement(nodeNames: string[]){
+    async deleteMissingRequirement(nodeNames: string[]) : Promise<boolean>{
         let forLooking = this.getRootNodes();
         let nodeForDelete = null;
-        console.log(nodeNames);
         for (var i = 0; i< nodeNames.length; i+=1){
             const node = forLooking.find((node) => node.label.replace(" ", "_") === nodeNames[i]);
             if (!node){
@@ -328,8 +336,11 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
             const compleated = await this.deleteNode(nodeForDelete);
             if (compleated){
                 vscode.window.showInformationMessage(`Conflict resolved!`);
+                return true;
             }
+            return false;
         }
+        return false;
     }
 
     addExtraTestCase(nodeNames: string[], testCaseData: any, testName: string, parameters : Parameter[]){

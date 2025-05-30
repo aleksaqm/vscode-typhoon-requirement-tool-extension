@@ -6,6 +6,7 @@ import * as os from 'os';
 import * as fs from 'fs';
 import * as path from 'path';
 import { spawn } from 'child_process';
+import { TreeNode } from '../models/treeNode';
 
 
 export class CoverageCheckWebviewProvider {
@@ -56,7 +57,7 @@ export class CoverageCheckWebviewProvider {
 
     private changeNodeColors(diff: any) {
         const allNodes = this.requirementDataProvider.getRootNodes();
-        function processNode(node: any) {
+        const processNode = (node: any) => {
             node.iconPath = undefined;
 
             switch (node.contextValue) {
@@ -103,7 +104,16 @@ export class CoverageCheckWebviewProvider {
                             });
                         });
                     }
-                    if (diff.skipped_tests.includes(node.id)) {
+                    const nodePath = this.requirementDataProvider.getNodePath(node);
+                    console.log("NNOOOODEEE PATHHH");
+                    console.log(nodePath);
+                    const normalizedSkipped = diff.skipped_tests.map((p: string) => 
+                        p.replace(/test_([^\\\/]+)\.py/gi, (match, p1) => p1)
+                            .replace(/\\/g, '/')
+                            .toLowerCase()
+                    );
+                    console.log(normalizedSkipped);
+                    if (normalizedSkipped.includes(nodePath)) {
                         node.iconPath = new vscode.ThemeIcon('debug-step-over', new vscode.ThemeColor('testing.iconQueued'));
                     }
                     break;
@@ -112,7 +122,7 @@ export class CoverageCheckWebviewProvider {
             if (node.children && node.children.length > 0) {
                 node.children.forEach(processNode);
             }
-        }
+        };
 
         allNodes.forEach(processNode);
         this.requirementDataProvider.refresh();
@@ -203,9 +213,11 @@ export class CoverageCheckWebviewProvider {
                 var requirementPath = message.value;
                 requirementPath = requirementPath.replace(/\\/g, '/').toLowerCase();
                 const requirements = requirementPath.split('/');
-                await this.requirementDataProvider.deleteMissingRequirement(requirements);
+                const compleated = await this.requirementDataProvider.deleteMissingRequirement(requirements);
+                if (compleated){
+                    this.generateCoverageReport(true);
+                }
                 // vscode.window.showInformationMessage(`Conflict resolved!`);
-                this.generateCoverageReport(true);
             }
             if(message.command === 'deleteTest'){
                 var testPath = message.value;
@@ -219,11 +231,18 @@ export class CoverageCheckWebviewProvider {
                     testName = testName.slice(0,-3);
                 }
                 requirements[requirements.length-1] = testName;
-                this.requirementDataProvider.deleteMissingRequirement(requirements);
-                // vscode.window.showInformationMessage(`Conflict resolved!`);
-                this.generateCoverageReport(true);
+                const compleated = await this.requirementDataProvider.deleteMissingRequirement(requirements);
+                if (compleated){
+                    this.generateCoverageReport(true);
+                }
             }
             if(message.command === 'deleteTestCase'){
+                const confirm = await vscode.window.showQuickPick(['Yes', 'No'], {
+                    placeHolder: `Are you sure you want to delete test case "${message.value}"?`,
+                });
+                if (confirm === 'No') {
+                    return;
+                }
                 const testName = message.value;
                 const missingTests = this.diff['missing_tests'];
                 let id = null;
@@ -505,7 +524,6 @@ export class CoverageCheckWebviewProvider {
                     </div>
                     <div id="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.25); z-index:999;" onclick="closeResolveModal()"></div>
                     <script>
-                        const vscode = acquireVsCodeApi();
                         let currentResolve = {};
 
                         function openResolveModal(file, id, changesStr) {
@@ -624,24 +642,6 @@ export class CoverageCheckWebviewProvider {
                             return '<code>' + String(val) + '</code>';
                         }
 
-                        document.addEventListener('click', function(e) {
-                            if (e.target.classList.contains('delete-btn') || e.target.classList.contains('add-btn')) {
-                                const type = e.target.getAttribute('data-type');
-                                const value = decodeURIComponent(e.target.getAttribute('data-value'));
-                                const parent = e.target.getAttribute('data-parent') ? decodeURIComponent(e.target.getAttribute('data-parent')) : null;
-                                vscode.postMessage({
-                                    command: type === 'missing' ? 'deleteRequirement'
-                                            : type === 'extra' ? 'addRequirement'
-                                            : type === 'missing-test' ? 'deleteTest'
-                                            : type === 'extra-test' ? 'addTest'
-                                            : type === 'missing-test-case' ? 'deleteTestCase'
-                                            : type === 'extra-test-case' ? 'addTestCase'
-                                            : '',
-                                    value,
-                                    parent
-                                });
-                            }
-                        });
                     </script>
                 </div>
             `;
@@ -736,6 +736,29 @@ export class CoverageCheckWebviewProvider {
                 ${renderModifiedTests(diff.modified_tests, this.requirementDataProvider)}
                 ${renderSkippedTests(diff.skipped_tests, this.requirementDataProvider)}
                 <hr>
+
+                <script>
+                    const vscode = acquireVsCodeApi();
+
+                    document.addEventListener('click', function(e) {
+                        if (e.target.classList.contains('delete-btn') || e.target.classList.contains('add-btn')) {
+                            const type = e.target.getAttribute('data-type');
+                            const value = decodeURIComponent(e.target.getAttribute('data-value'));
+                            const parent = e.target.getAttribute('data-parent') ? decodeURIComponent(e.target.getAttribute('data-parent')) : null;
+                            vscode.postMessage({
+                                command: type === 'missing' ? 'deleteRequirement'
+                                        : type === 'extra' ? 'addRequirement'
+                                        : type === 'missing-test' ? 'deleteTest'
+                                        : type === 'extra-test' ? 'addTest'
+                                        : type === 'missing-test-case' ? 'deleteTestCase'
+                                        : type === 'extra-test-case' ? 'addTestCase'
+                                        : '',
+                                value,
+                                parent
+                            });
+                        }
+                    });
+                </script>
             </body>
             </html>
         `;
