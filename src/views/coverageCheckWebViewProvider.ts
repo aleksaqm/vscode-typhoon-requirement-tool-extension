@@ -6,7 +6,6 @@ import * as os from 'os';
 import * as fs from 'fs';
 import * as path from 'path';
 import { spawn } from 'child_process';
-import { TreeNode } from '../models/treeNode';
 
 
 export class CoverageCheckWebviewProvider {
@@ -105,14 +104,11 @@ export class CoverageCheckWebviewProvider {
                         });
                     }
                     const nodePath = this.requirementDataProvider.getNodePath(node);
-                    console.log("NNOOOODEEE PATHHH");
-                    console.log(nodePath);
                     const normalizedSkipped = diff.skipped_tests.map((p: string) => 
                         p.replace(/test_([^\\\/]+)\.py/gi, (match, p1) => p1)
                             .replace(/\\/g, '/')
                             .toLowerCase()
                     );
-                    console.log(normalizedSkipped);
                     if (normalizedSkipped.includes(nodePath)) {
                         node.iconPath = new vscode.ThemeIcon('debug-step-over', new vscode.ThemeColor('testing.iconQueued'));
                     }
@@ -299,15 +295,23 @@ export class CoverageCheckWebviewProvider {
                 const extraTests = this.diff['extra_tests'];
                 let id = null;
                 Object.entries(extraTests).forEach(
-                    ([key, value] : [any, any]) => {
+                    async ([key, value] : [any, any]) => {
                         if (value[testName]){
                             if (value[testName]['id']){
                                 id = value[testName]['id'];
                                 const node = this.requirementDataProvider.getNodeById(id);
                                 if (node){
-                                    console.log("konfilit");
                                     vscode.window.showErrorMessage("Test case with this id already exists");
-                                    return;
+                                    const choice = await vscode.window.showWarningMessage(
+                                        "The test case with this id already exists. Do you want to delete it and add the new one?",
+                                        { modal: true },
+                                        "Yes", "No"
+                                    );
+                                    if (choice === "Yes") {
+                                        this.requirementDataProvider.deleteById(id);
+                                    } else {
+                                        return;
+                                    }
                                 }
                             }
                             key = key.replace(/\\/g, '/').toLowerCase();
@@ -347,6 +351,30 @@ export class CoverageCheckWebviewProvider {
                     }
                 );
                 
+            }
+            if (message.command === "updateExistingTests"){
+                const reqifContent = ReqifFileManager.exportToReqIF(this.requirementDataProvider.getAllNodes());
+                const tempDir = os.tmpdir();
+                const fileName = `temp_${Date.now()}.reqif`;
+                const tempPath = path.join(tempDir, fileName);
+                fs.writeFileSync(tempPath, reqifContent, 'utf-8');
+
+                const process = spawn('typhoon_test_update', [tempPath, this.outputDir]);
+                let result = '';
+                let error = '';
+
+                process.stdout.on('data', (data) => { result += data.toString(); });
+                process.stderr.on('data', (data) => {
+                    error += data.toString();
+                });
+                process.on('close', (code) => {
+                    if (code === 0) {
+                        this.generateCoverageReport(true); 
+                        vscode.window.showInformationMessage(`Updated test project successfully!`);
+                    } else {
+                        vscode.window.showErrorMessage(`Updating existing tests failed. ${error}`);
+                    }
+                });
             }
         });
     }
@@ -735,8 +763,21 @@ export class CoverageCheckWebviewProvider {
                 ${renderTestSideBySide('Test Cases', diff.missing_tests, diff.extra_tests)}
                 ${renderModifiedTests(diff.modified_tests, this.requirementDataProvider)}
                 ${renderSkippedTests(diff.skipped_tests, this.requirementDataProvider)}
+                
                 <hr>
-
+                <button class="vscode-button" onclick="updateExistingTests()" style="background:var(--vscode-button-background); color:var(--vscode-button-foreground); border:none; border-radius:3px; padding:6px 16px; font-weight:500; cursor:pointer;">
+                    Update Your Existing Test Project
+                </button>
+                <hr>
+                <div id="confirm-modal" style="display:none; position:fixed; top:30%; left:50%; transform:translate(-50%,-30%); background:var(--vscode-editorWidget-background,#1e1e1e); border:2px solid #e06c75; box-shadow:0 4px 24px #000a; padding:32px; z-index:10000; min-width:350px; border-radius:8px; color:var(--vscode-editor-foreground);">
+                    <h3 style="margin-top:0; color:#e06c75;">Are you sure?</h3>
+                    <div id="confirm-modal-message" style="margin-bottom:24px;"></div>
+                    <div style="display:flex; gap:16px; justify-content:flex-end;">
+                        <button id="confirm-modal-yes" class="vscode-button" style="background:#e06c75; color:#fff;">Yes</button>
+                        <button id="confirm-modal-no" class="vscode-button" style="background:var(--vscode-button-secondaryBackground); color:var(--vscode-button-secondaryForeground);">No</button>
+                    </div>
+                </div>
+                <div id="confirm-modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.35); z-index:9999;"></div>
                 <script>
                     const vscode = acquireVsCodeApi();
 
@@ -758,6 +799,44 @@ export class CoverageCheckWebviewProvider {
                             });
                         }
                     });
+
+                    function updateExistingTests() {
+                        showConfirmModal(
+                            "This action will update your existing test project and may overwrite changes. Are you sure you want to continue?",
+                            () => vscode.postMessage({ command: 'updateExistingTests' }),
+                            () => {} // Do nothing on No
+                        );
+                    }
+
+                    function showConfirmModal(message, onYes, onNo) {
+                        document.getElementById('confirm-modal-message').innerText = message;
+                        document.getElementById('confirm-modal').style.display = 'block';
+                        document.getElementById('confirm-modal-overlay').style.display = 'block';
+
+                        const yesBtn = document.getElementById('confirm-modal-yes');
+                        const noBtn = document.getElementById('confirm-modal-no');
+
+                        function cleanup() {
+                            document.getElementById('confirm-modal').style.display = 'none';
+                            document.getElementById('confirm-modal-overlay').style.display = 'none';
+                            yesBtn.removeEventListener('click', yesHandler);
+                            noBtn.removeEventListener('click', noHandler);
+                        }
+
+                        function yesHandler() {
+                            cleanup();
+                            if (onYes) onYes();
+                        }
+                        function noHandler() {
+                            cleanup();
+                            if (onNo) onNo();
+                        }
+
+                        yesBtn.addEventListener('click', yesHandler);
+                        noBtn.addEventListener('click', noHandler);
+                    }
+
+
                 </script>
             </body>
             </html>
