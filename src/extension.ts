@@ -175,25 +175,34 @@ export function activate(context: vscode.ExtensionContext) {
 	}));
 
 	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.generateTestsFromReqif', async () => {
-		const openUri = await vscode.window.showOpenDialog({
-			filters: { 'ReqIF Files': ['reqif'] },
-			canSelectMany: false,
-		});
+		try{
+			const openUri = await vscode.window.showOpenDialog({
+				filters: { 'ReqIF Files': ['reqif'] },
+				canSelectMany: false,
+			});
 
-		if (!openUri || openUri.length === 0) {
-			vscode.window.showErrorMessage('Import cancelled. No file selected.');
-			return;
+			if (!openUri || openUri.length === 0) {
+				vscode.window.showErrorMessage('Import cancelled. No file selected.');
+				return;
+			}
+
+			const outputFolder = await vscode.window.showOpenDialog({ canSelectFolders: true, canSelectFiles: false });
+			if (!outputFolder || outputFolder.length === 0) {
+				vscode.window.showErrorMessage('No output folder selected.');
+				return;
+			}
+			const reqifPath = openUri[0].fsPath;
+			const outputPath = outputFolder[0].fsPath;
+
+			const ignoreName = ".typhoonignore";
+			const ignorePath = path.join(outputPath, ignoreName);
+			fs.writeFileSync(ignorePath, "", 'utf-8');
+
+			runTestGeneration(reqifPath, outputPath);
+		}catch (err: any){
+			vscode.window.showErrorMessage(`Unexpected error during test generation: ${err.message}`);
 		}
-
-		const outputFolder = await vscode.window.showOpenDialog({ canSelectFolders: true, canSelectFiles: false });
-		if (!outputFolder || outputFolder.length === 0) {
-			vscode.window.showErrorMessage('No output folder selected.');
-			return;
-		}
-		const reqifPath = openUri[0].fsPath;
-		const outputPath = outputFolder[0].fsPath;
-
-		runTestGeneration(reqifPath, outputPath);
+		
 	}));
 
 	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.generateTests', async () => {
@@ -212,13 +221,14 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 			const outputDir = folderUri[0].fsPath;
 
-			console.log("AAAAAAAAAAAAAAA");
-			console.log(requirementDataProvider.getAllNodes());
-
 			const reqifContent = ReqifFileManager.exportToReqIF(requirementDataProvider.getAllNodes());
 			const fileName = `requirements_${Date.now()}.reqif`;
 			const reqifPath = path.join(outputDir, fileName);
 			fs.writeFileSync(reqifPath, reqifContent, 'utf-8');
+
+			const ignoreName = ".typhoonignore";
+			const ignorePath = path.join(outputDir, ignoreName);
+			fs.writeFileSync(ignorePath, "", 'utf-8');
 	
 			runTestGeneration(reqifPath, outputDir);
 	
@@ -258,6 +268,24 @@ export function activate(context: vscode.ExtensionContext) {
 				return;
 			}
 			const outputDir = folderUri[0].fsPath;
+
+			vscode.window.showInformationMessage(
+				"You can specify an ignore file (like .gitignore) to exclude files or folders from coverage check. " +
+				"This file should be in the root of your test project and list patterns to ignore, one per line. (e.g., *.tmp, /build/, test_data/)"
+			);
+			const ignoreFileName = '.typhoonignore';
+			const defaultIgnoreFilePath = path.join(outputDir, ignoreFileName);
+
+			if (!fs.existsSync(defaultIgnoreFilePath)) {
+				const choice = await vscode.window.showInformationMessage(
+					'There is no ignore file for coverage check. Do you want to create a new one or continue without it?',
+					'Create', 'Continue without'
+				);
+				if (choice === 'Create') {
+					fs.writeFileSync(defaultIgnoreFilePath, '', 'utf-8');
+					vscode.window.showInformationMessage(`Created ${ignoreFileName} in ${outputDir}`);
+				}
+			}
 
 			const coverageCheckProvider = new CoverageCheckWebviewProvider(requirementDataProvider, outputDir);
 			coverageCheckProvider.generateCoverageReport();
