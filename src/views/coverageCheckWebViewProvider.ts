@@ -134,6 +134,12 @@ export class CoverageCheckWebviewProvider {
                 { enableScripts: true }
             );
             this.panel.onDidDispose(() => { this.panel = undefined; });
+
+            this.panel.onDidChangeViewState(e => {
+            if (e.webviewPanel.visible) {
+                this.generateCoverageReport(true);
+            }
+        });
         }
         this.panel.webview.html = this.getHtml(diff);
         this.panel.webview.onDidReceiveMessage(async message => {
@@ -150,8 +156,6 @@ export class CoverageCheckWebviewProvider {
                             node.description = message.chosen.scenario;
                         }
                         if (message.chosen.parameters){
-                            console.log(message.chosen.parameters);
-
                             const newParams = message.chosen.parameters;
                             if (newParams[0]){
                                 var newParamNames : string[] = [];
@@ -167,7 +171,6 @@ export class CoverageCheckWebviewProvider {
                                     }
                                 });
                             }else{
-                                console.log("menjaj vrednosti");
                                 node.parameters.forEach(parameter => {
                                     console.log(newParams);
                                     var newParameterValue = newParams[parameter.name];
@@ -192,12 +195,13 @@ export class CoverageCheckWebviewProvider {
                                         }
                                     }
                                 });
-                                
-                                console.log(node.parameters);
                             }
                         }
                         if (message.chosen.steps){
                             node.steps = message.chosen.steps;
+                        }
+                        if (message.chosen.prerequisites){
+                            node.prerequisites = message.chosen.prerequisites;
                         }
                     }
                     this.requirementDataProvider.updateNode(node);
