@@ -19,7 +19,6 @@ export class TestCaseWebviewProvider {
                 console.log(message.data);
                 if (name && scenario && steps && prerequisites && parameters) {
                     if (node) {
-                        console.log("kumaraa");
                         const id = node.id!;
                         onSubmit(new TestCase(id, name, scenario, steps, prerequisites, parameters));
                         panel.dispose();
@@ -242,7 +241,6 @@ export class TestCaseWebviewProvider {
                     });
 
                     function removeParameter(index) {
-                        console.log("AAAAAAAAAAAAAAAAAAAAAA");
                         parameters.splice(index, 1);
                         updateParametersList();
                     }
@@ -265,14 +263,8 @@ export class TestCaseWebviewProvider {
 
     
                     document.getElementById('submitButton').addEventListener('click', () => {
-                        console.log("AAAAAAAAAAAAAAAAAAAA");
                         const name = document.getElementById('name').value;
                         const scenario = document.getElementById('scenario').value;
-                        console.log(name);
-                        console.log(scenario);
-                        console.log(lists.steps);
-                        console.log(lists.prerequisites);
-                        console.log(parameters);
 
                         vscode.postMessage({
                             command: 'submit',
@@ -314,10 +306,8 @@ export class TestCaseWebviewProvider {
 
                     window.addEventListener('DOMContentLoaded', () => {
                         const submitButton = document.getElementById('submitButton');
-                        console.log(submitButton);
                         if (submitButton) {
                             submitButton.addEventListener('click', () => {
-                            console.log("AAAAAAAAAAAAAAAAAAAA");
                             });
                         } else {
                             console.error("Submit button not found in DOM");

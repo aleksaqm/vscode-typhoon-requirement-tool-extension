@@ -61,7 +61,6 @@ export class CoverageCheckWebviewProvider {
 
             switch (node.contextValue) {
                 case 'requirement':
-                    console.log('requirement ' + node.label);
                     if (diff.missing_folders){
                         for (const folder of diff.missing_folders){
                             const tokens = folder.toLowerCase().replace(/\\/g, '/').split('/');
@@ -82,7 +81,6 @@ export class CoverageCheckWebviewProvider {
                     }
                     break;
                 case 'testCase':
-                    console.log('test case ' + node.label);
                     if (diff.modified_tests){
                         Object.entries(diff.modified_tests).forEach(([file, tests]) => {
                             Object.entries(tests as any).forEach(([id, changes]) => {
@@ -240,7 +238,7 @@ export class CoverageCheckWebviewProvider {
                 const confirm = await vscode.window.showQuickPick(['Yes', 'No'], {
                     placeHolder: `Are you sure you want to delete test case "${message.value}"?`,
                 });
-                if (confirm === 'No') {
+                if (confirm !== 'Yes') {
                     return;
                 }
                 const testName = message.value;
@@ -264,7 +262,7 @@ export class CoverageCheckWebviewProvider {
                 const confirm = await vscode.window.showQuickPick(['Yes', 'No'], {
                     placeHolder: `Are you sure you want to add requirement "${message.value}"?`,
                 });
-                if (confirm === 'No') {
+                if (confirm !== 'Yes') {
                     return;
                 }
                 var requirementPath = message.value;
@@ -278,7 +276,7 @@ export class CoverageCheckWebviewProvider {
                 const confirm = await vscode.window.showQuickPick(['Yes', 'No'], {
                     placeHolder: `Are you sure you want to add test "${message.value}"?`,
                 });
-                if (confirm === 'No') {
+                if (confirm !== 'Yes') {
                     return;
                 }
                 var testPath = message.value;
@@ -292,7 +290,7 @@ export class CoverageCheckWebviewProvider {
                 const confirm = await vscode.window.showQuickPick(['Yes', 'No'], {
                     placeHolder: `Are you sure you want to add test case "${message.value}"?`,
                 });
-                if (confirm === 'No') {
+                if (confirm !== 'Yes') {
                     return;
                 }
                 const testName = message.value;

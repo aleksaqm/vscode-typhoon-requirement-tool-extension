@@ -189,7 +189,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         const confirm = await vscode.window.showQuickPick(['Yes', 'No'], {
             placeHolder: `Delete requirement "${node.label}"?`,
         });
-        if (confirm === 'No') {
+        if (confirm !== 'Yes') {
             return false;
         }
     

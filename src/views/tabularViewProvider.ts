@@ -42,7 +42,7 @@ export class TabularViewProvider {
 
             function hasCoverageIcon(node : TreeNode) : boolean {
                 if (node.iconPath && typeof node.iconPath === 'object' &&
-                    (node.iconPath.id === 'warning' || node.iconPath.id === 'error')) {
+                    (node.iconPath.id === 'diff-modified' || node.iconPath.id === 'diff-removed' || node.iconPath.id === 'debug-step-over')) {
                     return true;
                 }
                 return node.children && node.children.some(hasCoverageIcon);
@@ -484,9 +484,9 @@ export class TabularViewProvider {
                     function renderRow(node, parentId = null) {
                         let rowClass = '';
                         if (node.iconPath && (typeof node.iconPath === 'object')){
-                            if (node.iconPath.id === 'warning') {
+                            if (node.iconPath.id === 'diff-modified' || node.iconPath.id === 'debug-step-over') {
                                 rowClass = 'warning-row';
-                            }else if (node.iconPath.id === 'error') {
+                            }else if (node.iconPath.id === 'diff-removed') {
                                 rowClass = 'error-row';
                             }
                         }
@@ -792,7 +792,6 @@ export class TabularViewProvider {
                         }
 
                         const rowType = selectedRow.children[3].textContent.trim().toLowerCase(); 
-                        console.log(rowType);
                         if (rowType === 'requirement') {
                             addRequirementButton.disabled = false;
                             addTestButton.disabled = false;
