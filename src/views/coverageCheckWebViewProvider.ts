@@ -20,7 +20,7 @@ export class CoverageCheckWebviewProvider {
     }
 
     public generateCoverageReport(updateExisting = false){
-        const reqifContent = ReqifFileManager.exportToReqIF(this.requirementDataProvider.getAllNodes());
+        const reqifContent = ReqifFileManager.exportToReqIF(this.requirementDataProvider.getAllNodes(), this.requirementDataProvider.projectId);
         const tempDir = os.tmpdir();
         const fileName = `temp_${Date.now()}.reqif`;
         const tempPath = path.join(tempDir, fileName);
@@ -44,8 +44,9 @@ export class CoverageCheckWebviewProvider {
                     this.panel.webview.html = this.getHtml(diff);
                 } else {
                     this.show(diff);
-                    this.changeNodeColors(diff);
                 }
+                this.changeNodeColors(diff);
+
             } else {
                 vscode.window.showErrorMessage(`Coverage check failed. ${error}`);
             }
@@ -57,8 +58,7 @@ export class CoverageCheckWebviewProvider {
     private changeNodeColors(diff: any) {
         const allNodes = this.requirementDataProvider.getRootNodes();
         const processNode = (node: any) => {
-            node.iconPath = undefined;
-
+            node.iconPath = new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.white"));
             switch (node.contextValue) {
                 case 'requirement':
                     if (diff.missing_folders){
@@ -320,31 +320,33 @@ export class CoverageCheckWebviewProvider {
                             const requirements = key.split('/');
                             const testCaseData = value[testName];
                             let parameters: Parameter[] = [];
-                            Object.entries(testCaseData['parameters']).forEach(
-                                ([key, value] : [string, any]) => {
-                                    const parameterName = key;
-                                    let parameterType : string = '';
-                                    let parameterValue = value;
-                                    if(value.length > 0){
-                                        if (typeof value[0] === "number") {
-                                            parameterType = Number.isInteger(value[0]) ? "int" : "float";
+                            if (testCaseData['parameters']){
+                                Object.entries(testCaseData['parameters']).forEach(
+                                    ([key, value] : [string, any]) => {
+                                        const parameterName = key;
+                                        let parameterType : string = '';
+                                        let parameterValue = value;
+                                        if(value.length > 0){
+                                            if (typeof value[0] === "number") {
+                                                parameterType = Number.isInteger(value[0]) ? "int" : "float";
+                                            }
+                                            else if (typeof value[0] === "object"){
+                                                if (Array.isArray(value[0])) {
+                                                    parameterType = 'array';
+                                                } 
+                                                parameterValue = [];
+                                                value.forEach((singleValue: any[]) => {
+                                                    parameterValue.push(JSON.stringify(singleValue));
+                                                });
+                                            }
+                                            else {
+                                                parameterType = typeof value[0];
+                                            }
                                         }
-                                        else if (typeof value[0] === "object"){
-                                            if (Array.isArray(value[0])) {
-                                                parameterType = 'array';
-                                            } 
-                                            parameterValue = [];
-                                            value.forEach((singleValue: any[]) => {
-                                                parameterValue.push(JSON.stringify(singleValue));
-                                            });
-                                        }
-                                        else {
-                                            parameterType = typeof value[0];
-                                        }
+                                        parameters.push(new Parameter(parameterName, parameterType, parameterValue));
                                     }
-                                    parameters.push(new Parameter(parameterName, parameterType, parameterValue));
-                                }
-                            );   
+                                ); 
+                            }
                             this.requirementDataProvider.addExtraTestCase(requirements, testCaseData, testName, parameters);     
                             vscode.window.showInformationMessage(`Conflict resolved!`);
                             this.generateCoverageReport(true);                               
@@ -355,7 +357,7 @@ export class CoverageCheckWebviewProvider {
                 
             }
             if (message.command === "updateExistingTests"){
-                const reqifContent = ReqifFileManager.exportToReqIF(this.requirementDataProvider.getAllNodes());
+                const reqifContent = ReqifFileManager.exportToReqIF(this.requirementDataProvider.getAllNodes(), this.requirementDataProvider.projectId);
                 const tempDir = os.tmpdir();
                 const fileName = `temp_${Date.now()}.reqif`;
                 const tempPath = path.join(tempDir, fileName);

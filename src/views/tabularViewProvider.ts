@@ -834,7 +834,7 @@ export class TabularViewProvider {
                         const row = cell.closest('tr');
                         const rowId = row.getAttribute('data-id');
                         const columnIndex = Array.from(cell.parentNode.children).indexOf(cell);
-                        const rowType = row.children[2].textContent.trim().toLowerCase();
+                        const rowType = row.children[3].textContent.trim().toLowerCase(); //treba 3
 
                         const editableColumns = {
                             1: 'label', // Name column
@@ -851,7 +851,9 @@ export class TabularViewProvider {
                         const field = editableColumns[columnIndex];
                         const currentValue = cell.querySelector('.name-text')?.textContent.trim() || cell.textContent.trim();
 
-                        if (!canUpdate(row.children[2].textContent.trim().toLowerCase(), field)) {
+                        console.log(field);
+                        if (!canUpdate(row.children[3].textContent.trim().toLowerCase(), field)) {
+                            console.log("CANT UPDATE");
                             return;
                         }
 

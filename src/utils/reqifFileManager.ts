@@ -7,7 +7,7 @@ import { TestNode } from "../models/test";
 import { getUniqueId } from "./idGenerator";
 
 export class ReqifFileManager{
-    public static exportToReqIF(nodes: TreeNode[]): string {
+    public static exportToReqIF(nodes: TreeNode[], projectId: string): string {
             const now = new Date().toISOString();
         
             const root = xmlbuilder.create('REQ-IF', { version: '1.0', encoding: 'UTF-8' })
@@ -23,7 +23,11 @@ export class ReqifFileManager{
             header.ele('REQ-IF-VERSION', '1.0');
             header.ele('SOURCE-TOOL-ID', 'Typhoon Requirement Tool');
             header.ele('TITLE', 'Exported Requirements');   
-            header.ele('PROJECT-ID', getUniqueId());                                    //maybe we need to have this saved somewhere but for now we won't
+            if (projectId === ""){
+                header.ele('PROJECT-ID', getUniqueId());                                    //maybe we need to have this saved somewhere but for now we won't
+            }else{
+                header.ele('PROJECT-ID', projectId);                                    //maybe we need to have this saved somewhere but for now we won't
+            }
         
             const coreContent = root.ele('CORE-CONTENT').ele('REQ-IF-CONTENT');
         

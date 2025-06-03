@@ -148,6 +148,15 @@
           "light": "media/light/broom.svg",
           "dark": "media/dark/broom.svg"
         }
+      },
+      {
+        
+        "command": "typhoon-requirement-tool.restart",
+        "title": "Restart Requirement Project",
+        "icon": {
+          "light": "media/light/refresh.svg",
+          "dark": "media/dark/refresh.svg"
+        }
       }
     ],
     "viewsContainers": {
@@ -219,6 +228,11 @@
         },
         {
           "command": "typhoon-requirement-tool.generateTests",
+          "when": "view == typhoon-requirement-tool.tree && typhoon-requirement-tool.hasRequirements",
+          "group": "navigation"
+        },
+        {
+          "command": "typhoon-requirement-tool.restart",
           "when": "view == typhoon-requirement-tool.tree && typhoon-requirement-tool.hasRequirements",
           "group": "navigation"
         },

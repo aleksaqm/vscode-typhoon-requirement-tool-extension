@@ -85,6 +85,10 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.restart', () => {
+		requirementDataProvider.restart();
+	}));
+
 	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.exportToReqIF', async () => {
 		const saveUri = await vscode.window.showSaveDialog({
 			filters: { 'ReqIF Files': ['reqif'] },
@@ -96,7 +100,7 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 		try{
-			const reqifContent = ReqifFileManager.exportToReqIF(requirementDataProvider.getAllNodes());
+			const reqifContent = ReqifFileManager.exportToReqIF(requirementDataProvider.getAllNodes(), requirementDataProvider.projectId);
 			await vscode.workspace.fs.writeFile(saveUri, Buffer.from(reqifContent, 'utf-8'));
 			vscode.window.showInformationMessage('Requirements exported to ReqIF file successfully!');
 		}catch (error : any) {
@@ -221,7 +225,7 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 			const outputDir = folderUri[0].fsPath;
 
-			const reqifContent = ReqifFileManager.exportToReqIF(requirementDataProvider.getAllNodes());
+			const reqifContent = ReqifFileManager.exportToReqIF(requirementDataProvider.getAllNodes(), requirementDataProvider.projectId);
 			const fileName = `requirements_${Date.now()}.reqif`;
 			const reqifPath = path.join(outputDir, fileName);
 			fs.writeFileSync(reqifPath, reqifContent, 'utf-8');

@@ -16,9 +16,11 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
     private requirements: TreeNode[] = [];
     private detailsViewProvider?: DetailsViewProvider;
     private selectedNode: TreeNode | null = null;
+    public projectId : string;
 
     constructor(detailsViewProvider?: DetailsViewProvider) {
         this.detailsViewProvider = detailsViewProvider;
+        this.projectId = getUniqueId();
     }
 
     getTreeItem(element: TreeNode): vscode.TreeItem {
@@ -115,6 +117,14 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
     refresh(): void {
         this._onDidChangeTreeData.fire();
         this.updateExportContext();
+    }
+
+    restart(): void{
+        this.requirements = [];
+        this._onDidChangeTreeData.fire();
+        this.projectId = getUniqueId();
+        this.clearSelection();
+        this.refresh();
     }
 
     onNodeSelected(node: TreeNode | null): void {
@@ -272,7 +282,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         let forLooking = this.getRootNodes();
         let parent = null;
         for (var i = 0; i< nodeNames.length; i += 1){
-            const node = forLooking.find((node) => node.label.replace(" ", "_") === nodeNames[i]);
+            const node = forLooking.find((node) => node.label.replace(" ", "_").toLowerCase() === nodeNames[i]);
             if (!node){
                 if (i === nodeNames.length-1){
                     break;
@@ -287,7 +297,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
             parent = node;
             forLooking = node.children;
         }
-        const node = forLooking.find((node) => node.label.replace(" ", "_") === nodeNames[i]);
+        const node = forLooking.find((node) => node.label.replace(" ", "_").toLowerCase() === nodeNames[i]);
         if (node || i === nodeNames.length){
             return node;
         }
@@ -304,7 +314,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
             if (testName.endsWith(".py")){
                 testName = testName.slice(0,-3);
             }
-            const node = forLooking.find((node) => node.label.replace(" ", "_") === testName);
+            const node = forLooking.find((node) => node.label.replace(" ", "_").toLowerCase() === testName);
             if (node){
                 return node;
             }
@@ -319,7 +329,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         let forLooking = this.getRootNodes();
         let nodeForDelete = null;
         for (var i = 0; i< nodeNames.length; i+=1){
-            const node = forLooking.find((node) => node.label.replace(" ", "_") === nodeNames[i]);
+            const node = forLooking.find((node) => node.label.replace(" ", "_").toLowerCase() === nodeNames[i]);
             if (!node){
                 vscode.window.showErrorMessage("Requirement doesn't exist");
                 break;
@@ -344,7 +354,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
     addExtraTestCase(nodeNames: string[], testCaseData: any, testName: string, parameters : Parameter[]){
         const createdTest = this.addExtraRequirement(nodeNames, 'test');
         if (createdTest){
-            const node = createdTest.children.find((node) => node.label.replace(" ", "_") === testName);
+            const node = createdTest.children.find((node) => node.label.replace(" ", "_").toLowerCase() === testName);
             if (node){
                 vscode.window.showErrorMessage(`There is test case with same name in ${createdTest.label}`);
                 return;
