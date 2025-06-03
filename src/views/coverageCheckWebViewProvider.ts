@@ -109,7 +109,7 @@ export class CoverageCheckWebviewProvider {
                             .replace(/\\/g, '/')
                             .toLowerCase()
                     );
-                    if (normalizedSkipped.includes(nodePath)) {
+                    if (normalizedSkipped.includes(nodePath.toLowerCase())) {
                         node.iconPath = new vscode.ThemeIcon('debug-step-over', new vscode.ThemeColor('testing.iconQueued'));
                     }
                     break;

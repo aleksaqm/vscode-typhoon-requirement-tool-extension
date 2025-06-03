@@ -54,8 +54,6 @@ export class DetailsViewProvider implements vscode.WebviewViewProvider {
                 <p><strong>Scenario:</strong> ${node.scenario}</p>
                 <p><strong>Steps:</strong> ${node.steps.join(', ')}</p>
                 <p><strong>Prerequisites:</strong> ${node.prerequisites.join(', ')}</p>
-                <p><strong>Test Data:</strong> ${node.testData.join(', ')}</p>
-                <p><strong>Expected Results:</strong> ${node.expectedResults.join(', ')}</p>
                 ${parametersTable ? `
                     <p><strong>Parameters:</strong></p>
                     <table border="1" style="border-collapse: collapse; width: 100%; margin-top: 10px;">

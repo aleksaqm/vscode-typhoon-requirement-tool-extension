@@ -261,8 +261,6 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
                 testCaseNode.description = updatedTestCase.scenario;
                 testCaseNode.steps = updatedTestCase.steps;
                 testCaseNode.prerequisites = updatedTestCase.prerequisites;
-                testCaseNode.testData = updatedTestCase.testData;
-                testCaseNode.expectedResults = updatedTestCase.expectedResults;
                 testCaseNode.parameters = updatedTestCase.parameters;
             }
             this.refresh();
@@ -351,7 +349,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
                 vscode.window.showErrorMessage(`There is test case with same name in ${createdTest.label}`);
                 return;
             }
-            const newTestCase = new TestCase(getUniqueId(), testName, testCaseData['scenario'], [], [], [], [], parameters);
+            const newTestCase = new TestCase(getUniqueId(), testName, testCaseData['scenario'], [], [], parameters);
             createdTest?.children.push(newTestCase);
             newTestCase.parent = createdTest;
             this.requirements.push(newTestCase);

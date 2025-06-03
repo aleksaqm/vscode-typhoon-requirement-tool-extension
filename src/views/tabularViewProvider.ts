@@ -93,7 +93,7 @@ export class TabularViewProvider {
             : null;
     
         if (node) {
-            if (['steps', 'prerequisites', 'testData', 'expectedResults'].includes(field)) {
+            if (['steps', 'prerequisites'].includes(field)) {
                 (node as any)[field] = value ? value.split(',').map(item => item.trim()) : [];
             } else if (field === 'parameters') {
                 try {
@@ -171,7 +171,7 @@ export class TabularViewProvider {
                 nodeToAdd = new TestNode(getUniqueId(), newNode.label, newNode.description);
             }
             else if (newNode.contextValue === 'testcase'){
-                nodeToAdd = new TestCase(getUniqueId(), newNode.label, newNode.description, newNode.steps, newNode.prerequisites, newNode.testData, newNode.expectedResults, newNode.parameters);
+                nodeToAdd = new TestCase(getUniqueId(), newNode.label, newNode.description, newNode.steps, newNode.prerequisites, newNode.parameters);
             }else{
                 console.log("Invalid node type.");
                 return;
@@ -210,7 +210,7 @@ export class TabularViewProvider {
     private static updateArray(id: string, field: string, value: string): void {
         const node = this.findNodeById(this.requirementDataProvider?.getAllNodes() || [], id);
         if (node instanceof TestCase) {
-            if (field === 'steps' || field === 'prerequisites' || field === 'testData' || field === 'expectedResults') {
+            if (field === 'steps' || field === 'prerequisites') {
                 node[field] = value ? value.split(',').map(item => item.trim()) : [];
             }
             this.requirementDataProvider?.refresh();
@@ -432,8 +432,6 @@ export class TabularViewProvider {
                             <th>Status</th>
                             <th>Steps</th>
                             <th>Prerequisites</th>
-                            <th>Test Data</th>
-                            <th>Expected Results</th>
                             <th>Parameters</th>
                         </tr>
                     </thead>
@@ -510,8 +508,6 @@ export class TabularViewProvider {
                                 <td>\${node.status || ''}</td>
                                 <td>\${node.contextValue === 'testCase' ? '<button class="manage-array" data-field="steps">Manage</button>' : ''}</td>
                                 <td>\${node.contextValue === 'testCase' ? '<button class="manage-array" data-field="prerequisites">Manage</button>' : ''}</td>
-                                <td>\${node.contextValue === 'testCase' ? '<button class="manage-array" data-field="testData">Manage</button>' : ''}</td>
-                                <td>\${node.contextValue === 'testCase' ? '<button class="manage-array" data-field="expectedResults">Manage</button>' : ''}</td>
                                 <td>
                                     \${node.contextValue === 'testCase' ? '<button class="manage-parameters">Manage</button>' : ''}
                                 </td>
@@ -660,8 +656,6 @@ export class TabularViewProvider {
                                 </td>
                                 <td>\${type === 'testcase' ? '<input type="text" placeholder="Steps" class="expandable-input">' : ''}</td>
                                 <td>\${type === 'testcase' ? '<input type="text" placeholder="Prerequisites" class="expandable-input">' : ''}</td>
-                                <td>\${type === 'testcase' ? '<input type="text" placeholder="Test Data" class="expandable-input">' : ''}</td>
-                                <td>\${type === 'testcase' ? '<input type="text" placeholder="Expected Results" class="expandable-input">' : ''}</td>
                                 <td>\${type === 'testcase' ? '<input type="text" placeholder="Parameters" class="expandable-input">' : ''}</td>
                             \`;
 
@@ -735,8 +729,6 @@ export class TabularViewProvider {
                             status: type === 'requirement' ? selects[1]?.value : undefined,
                             steps: type === 'testcase' ? inputs[2]?.value.trim().split(',').map(s => s.trim()) : [],
                             prerequisites: type === 'testcase' ? inputs[3]?.value.trim().split(',').map(s => s.trim()) : [],
-                            testData: type === 'testcase' ? inputs[4]?.value.trim().split(',').map(s => s.trim()) : [],
-                            expectedResults: type === 'testcase' ? inputs[5]?.value.trim().split(',').map(s => s.trim()) : [],
                             parameters: type === 'testcase' ? inputs[6]?.value.trim().split(',').map(s => s.trim()) : [],
                             children: [],
                             parentId: parentId,
@@ -831,7 +823,7 @@ export class TabularViewProvider {
                         } else if (rowType === 'test') {
                             return false; // Tests are not editable
                         } else if (rowType === 'testcase') {
-                            return field === 'steps' || field === 'prerequisites' || field === 'testData' || field === 'expectedResults' || field === 'parameters';
+                            return field === 'steps' || field === 'prerequisites' || field === 'parameters';
                         }
                         return false; // Default to not editable
                     }
@@ -852,8 +844,6 @@ export class TabularViewProvider {
                             5: 'status', // Status column
                             6: 'steps', // Steps column
                             7: 'prerequisites', // Prerequisites column
-                            8: 'testData', // Test Data column
-                            9: 'expectedResults', // Expected Results column
                             // 9: 'parameters', // Parameters column
                         };
 
@@ -928,13 +918,13 @@ export class TabularViewProvider {
                             return;
                         }
 
-                        if (['steps', 'prerequisites', 'testData', 'expectedResults', 'parameters'].includes(field)) {
+                        if (['steps', 'prerequisites', 'parameters'].includes(field)) {
                             node[field] = newValue ? newValue.split(',').map(item => item.trim()) : [];
                         } else {
                             node[field] = newValue;
                         }
                             
-                        if (['steps', 'prerequisites', 'testData', 'expectedResults', 'parameters'].includes(field)) {
+                        if (['steps', 'prerequisites', 'parameters'].includes(field)) {
                             // Update the cell content with the joined array
                             cell.textContent = Array.isArray(node[field]) ? node[field].join(', ') : '';
                         }

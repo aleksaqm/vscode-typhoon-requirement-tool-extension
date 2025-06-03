@@ -15,15 +15,17 @@ export class TestCaseWebviewProvider {
 
         panel.webview.onDidReceiveMessage((message) => {
             if (message.command === 'submit') {
-                const { name, scenario, steps, prerequisites, testData, expectedResults, parameters } = message.data;
+                const { name, scenario, steps, prerequisites, parameters } = message.data;
                 console.log(message.data);
-                if (name && scenario && steps && prerequisites && expectedResults && parameters) {
+                if (name && scenario && steps && prerequisites && parameters) {
                     if (node) {
+                        console.log("kumaraa");
                         const id = node.id!;
-                        onSubmit(new TestCase(id, name, scenario, steps, prerequisites, testData, expectedResults, parameters));
+                        onSubmit(new TestCase(id, name, scenario, steps, prerequisites, parameters));
                         panel.dispose();
+                        return;
                     }
-                    const newTestCase = new TestCase(getUniqueId(), name, scenario, steps, prerequisites, testData, expectedResults, parameters);
+                    const newTestCase = new TestCase(getUniqueId(), name, scenario, steps, prerequisites, parameters);
                     onSubmit(newTestCase);
                     panel.dispose();
                 } else {
@@ -40,8 +42,6 @@ export class TestCaseWebviewProvider {
         const scenario = node ? node.scenario : '';
         const steps = node ? node.steps : [];
         const prerequisites = node ? node.prerequisites : [];
-        const testData = node ? node.testData : [];
-        const expectedResults = node ? node.expectedResults : [];
         const parameters = node ? node.parameters : [];
     
         return `
@@ -105,8 +105,6 @@ export class TestCaseWebviewProvider {
     
                     ${this.getDynamicListHtml('steps', 'Steps', steps)}
                     ${this.getDynamicListHtml('prerequisites', 'Prerequisites', prerequisites)}
-                    ${this.getDynamicListHtml('testData', 'Test Data', testData)}
-                    ${this.getDynamicListHtml('expectedResults', 'Expected Results', expectedResults)}
                     <br>
                     <label for="parameters">Parameters:</label>
                     <div id="parametersSection">
@@ -143,8 +141,6 @@ export class TestCaseWebviewProvider {
                     const lists = {
                         steps: ${JSON.stringify(steps)},
                         prerequisites: ${JSON.stringify(prerequisites)},
-                        testData: ${JSON.stringify(testData)},
-                        expectedResults: ${JSON.stringify(expectedResults)}
                     };
     
                     function addItem(listName) {
@@ -183,7 +179,7 @@ export class TestCaseWebviewProvider {
 
                     const parameters = ${node ? JSON.stringify(parameters) : '[]'};
 
-                    ['steps', 'prerequisites', 'testData', 'expectedResults'].forEach(listName => {
+                    ['steps', 'prerequisites'].forEach(listName => {
                         document.getElementById(\`add\${listName}Button\`)
                             .addEventListener('click', () => addItem(listName));
                     });
@@ -276,8 +272,6 @@ export class TestCaseWebviewProvider {
                         console.log(scenario);
                         console.log(lists.steps);
                         console.log(lists.prerequisites);
-                        console.log(lists.testData);
-                        console.log(lists.expectedResults);
                         console.log(parameters);
 
                         vscode.postMessage({
@@ -287,8 +281,6 @@ export class TestCaseWebviewProvider {
                                 scenario,
                                 steps: lists.steps,
                                 prerequisites: lists.prerequisites,
-                                testData: lists.testData,
-                                expectedResults: lists.expectedResults,
                                 parameters,
                             }
                         });
