@@ -512,6 +512,30 @@ export class CoverageCheckWebviewProvider {
             `;
         }
 
+        function formatValue(val: any): string {
+            if (Array.isArray(val)) {
+                return `<code>${JSON.stringify(val)}</code>`;
+            }
+            if (typeof val === 'object' && val !== null) {
+                return `<code>${JSON.stringify(val, null, 2)}</code>`;
+            }
+            return `<code>${String(val)}</code>`;
+        }
+        
+
+        function renderChangePair(newVal : any, oldVal : any) {
+            return `
+                <div style="margin-bottom:4px;">
+                    <span style="color:#56b6c2;font-weight:500;">incoming:</span>
+                    <span>${formatValue(newVal)}</span>
+                </div>
+                <div>
+                    <span style="color:#888;font-weight:500;">current:</span>
+                    <span>${formatValue(oldVal)}</span>
+                </div>
+            `;
+        }
+
         function renderModifiedTests(modified: Record<string, any>, requirementDataProvider: RequirementTreeProvider) {
             if (!modified || Object.keys(modified).length === 0) { return ''; }
             return `
@@ -531,7 +555,9 @@ export class CoverageCheckWebviewProvider {
                                                         <span class="label">${param}:</span>
                                                         ${param === 'parameters' && Array.isArray(values)
                                                             ? renderParameterSets(values)
-                                                            : `<pre>${JSON.stringify(values, null, 2)}</pre>`}
+                                                            : (Array.isArray(values) && values.length === 2
+                                                                ? renderChangePair(values[0], values[1])
+                                                                : `<pre>${JSON.stringify(values, null, 2)}</pre>`)}
                                                     </li>
                                                 `).join('')}
                                             </ul>
