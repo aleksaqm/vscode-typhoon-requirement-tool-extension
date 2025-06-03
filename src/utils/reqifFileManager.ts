@@ -7,7 +7,7 @@ import { TestNode } from "../models/test";
 import { getUniqueId } from "./idGenerator";
 
 export class ReqifFileManager{
-    public static exportToReqIF(nodes: TreeNode[]): string {
+    public static exportToReqIF(nodes: TreeNode[], projectId: string): string {
             const now = new Date().toISOString();
         
             const root = xmlbuilder.create('REQ-IF', { version: '1.0', encoding: 'UTF-8' })
@@ -23,7 +23,11 @@ export class ReqifFileManager{
             header.ele('REQ-IF-VERSION', '1.0');
             header.ele('SOURCE-TOOL-ID', 'Typhoon Requirement Tool');
             header.ele('TITLE', 'Exported Requirements');   
-            header.ele('PROJECT-ID', getUniqueId());                                    //maybe we need to have this saved somewhere but for now we won't
+            if (projectId === ""){
+                header.ele('PROJECT-ID', getUniqueId());                                    //maybe we need to have this saved somewhere but for now we won't
+            }else{
+                header.ele('PROJECT-ID', projectId);                                    //maybe we need to have this saved somewhere but for now we won't
+            }
         
             const coreContent = root.ele('CORE-CONTENT').ele('REQ-IF-CONTENT');
         
@@ -133,18 +137,6 @@ export class ReqifFileManager{
             }).ele('TYPE').ele('DATATYPE-DEFINITION-STRING-REF', '_StringType');
             
             specTestCaseAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
-                IDENTIFIER: '_TestData',
-                'LAST-CHANGE': now,
-                'LONG-NAME': 'ReqIF.TestData',
-            }).ele('TYPE').ele('DATATYPE-DEFINITION-STRING-REF', '_StringType');
-            
-            specTestCaseAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
-                IDENTIFIER: '_ExpectedResults',
-                'LAST-CHANGE': now,
-                'LONG-NAME': 'ReqIF.ExpectedResults',
-            }).ele('TYPE').ele('DATATYPE-DEFINITION-STRING-REF', '_StringType');
-            
-            specTestCaseAttributes.ele('ATTRIBUTE-DEFINITION-STRING', {
                 IDENTIFIER: '_Parameters',
                 'LAST-CHANGE': now,
                 'LONG-NAME': 'ReqIF.Parameters',
@@ -208,14 +200,6 @@ export class ReqifFileManager{
                     values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.prerequisites.join(',') || '' })
                         .ele('DEFINITION')
                         .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_Prerequisites');
-    
-                    values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.testData.join(',') || '' })
-                        .ele('DEFINITION')
-                        .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_TestData');
-    
-                    values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node.expectedResults.join(',') || '' })
-                        .ele('DEFINITION')
-                        .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_ExpectedResults');
     
                     values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': JSON.stringify(node.parameters, null, 2) || '' })
                         .ele('DEFINITION')
@@ -316,8 +300,6 @@ export class ReqifFileManager{
                 let status = '';
                 let steps: string[] = [];
                 let prerequisites: string[] = [];
-                let testData: string[] = [];
-                let expectedResults: string[] = [];
                 let parameters: any[] = [];
         
                 for (const value of Array.isArray(values) ? values : [values]) {
@@ -347,12 +329,6 @@ export class ReqifFileManager{
                         case '_Prerequisites':
                             prerequisites = theValue.split(',');
                             break;
-                        case '_TestData':
-                            testData = theValue.split(',');
-                            break;
-                        case '_ExpectedResults':
-                            expectedResults = theValue.split(',');
-                            break;
                         case '_Parameters':
                             parameters = JSON.parse(theValue || '[]');
                             break;
@@ -363,7 +339,7 @@ export class ReqifFileManager{
                 if (type === '_RequirementType') {
                     node = new Requirement(id, label, description, priority as 'High' | 'Medium' | 'Low', status as 'Draft' | 'Ready' | 'Reviewed' | 'Approved' | 'Released');
                 } else if (type === '_TestCaseType') {
-                    node = new TestCase(id, label, description, steps, prerequisites, testData, expectedResults, parameters);
+                    node = new TestCase(id, label, description, steps, prerequisites, parameters);
                 } else if (type === '_TestType') {
                     node = new TestNode(id, label, description);
                 } else {

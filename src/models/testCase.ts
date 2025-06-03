@@ -8,8 +8,6 @@ export class TestCase extends TreeNode{
         public scenario: string,
         public steps: string[],
         public prerequisites: string[],
-        public testData: string[],
-        public expectedResults: string[],
         public parameters: Parameter[] = [],
     ){
         super(id, name, vscode.TreeItemCollapsibleState.None, 'testCase');
@@ -23,6 +21,17 @@ export class TestCase extends TreeNode{
 }
 
 export class Parameter{
-    constructor(public name: string, public type: string, public value: any[]){
+    public name: string;
+    public type: string;
+    public value: any[];
+
+
+    constructor(name: string)
+    constructor(name: string, type: string, value: any[])
+    constructor(name: string, type?: string, value?: any[])
+    {
+        this.name = name;
+        this.type = type ?? 'string';
+        this.value = value ?? [];
     }
 }

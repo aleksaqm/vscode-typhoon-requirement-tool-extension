@@ -5,11 +5,13 @@ import { getUniqueId } from '../utils/idGenerator';
 import { Requirement } from '../models/requirement';
 import { TestNode } from '../models/test';
 import { TestCase } from '../models/testCase';
+// import _ from 'lodash';
 
 export class TabularViewProvider {
     private static panel: vscode.WebviewPanel | null = null;
     private static requirementDataProvider: RequirementTreeProvider | null = null;
     private static expandedNodeIds: Set<string> = new Set();
+    private static allNodes : TreeNode[] = [];
 
     static show(requirementDataProvider: RequirementTreeProvider): void {
         this.requirementDataProvider = requirementDataProvider;
@@ -33,9 +35,20 @@ export class TabularViewProvider {
         const updateTabularView = () => {
             const expandedNodeIds = Array.from(TabularViewProvider.expandedNodeIds);
             const rootRequirements = this.requirementDataProvider?.getRootNodes() || [];
+            
             const serializedRequirements = TabularViewProvider.serializeTree(rootRequirements);
+            this.allNodes = serializedRequirements;
+            let coverageActive = rootRequirements.some(node => hasCoverageIcon(node));
 
-            TabularViewProvider.panel!.webview.html = TabularViewProvider.getHtml(serializedRequirements, expandedNodeIds);
+            function hasCoverageIcon(node : TreeNode) : boolean {
+                if (node.iconPath && typeof node.iconPath === 'object' &&
+                    (node.iconPath.id === 'diff-modified' || node.iconPath.id === 'diff-removed' || node.iconPath.id === 'debug-step-over')) {
+                    return true;
+                }
+                return node.children && node.children.some(hasCoverageIcon);
+            }
+
+            TabularViewProvider.panel!.webview.html = TabularViewProvider.getHtml(expandedNodeIds, coverageActive);
       };
 
         updateTabularView();
@@ -59,11 +72,17 @@ export class TabularViewProvider {
             }else if (message.command === 'addNode') {
                 this.addNode(message.data);
             }else if (message.command === 'updateParameters'){
-                console.log(message.data);
                 this.updateParameters(message.data.id, message.data.parameters);
             }else if (message.command === 'updateArray'){
-                console.log(message.data);
                 this.updateArray(message.data.id, message.data.field, message.data.value);
+            }else if (message.command === 'removeIcons') {
+                function clearIcons(node: TreeNode) {
+                    node.iconPath = new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.white"));
+                    node.children.forEach(clearIcons);
+                }
+                this.allNodes.forEach(clearIcons);
+                TabularViewProvider.panel?.webview.postMessage({ command: 'iconsRemoved' });
+                TabularViewProvider.panel!.webview.html = TabularViewProvider.getHtml([], false);
             }
         });
     }
@@ -74,7 +93,7 @@ export class TabularViewProvider {
             : null;
     
         if (node) {
-            if (['steps', 'prerequisites', 'testData', 'expectedResults'].includes(field)) {
+            if (['steps', 'prerequisites'].includes(field)) {
                 (node as any)[field] = value ? value.split(',').map(item => item.trim()) : [];
             } else if (field === 'parameters') {
                 try {
@@ -152,7 +171,7 @@ export class TabularViewProvider {
                 nodeToAdd = new TestNode(getUniqueId(), newNode.label, newNode.description);
             }
             else if (newNode.contextValue === 'testcase'){
-                nodeToAdd = new TestCase(getUniqueId(), newNode.label, newNode.description, newNode.steps, newNode.prerequisites, newNode.testData, newNode.expectedResults, newNode.parameters);
+                nodeToAdd = new TestCase(getUniqueId(), newNode.label, newNode.description, newNode.steps, newNode.prerequisites, newNode.parameters);
             }else{
                 console.log("Invalid node type.");
                 return;
@@ -179,13 +198,11 @@ export class TabularViewProvider {
     private static updateParameters(id: string, parameters: string): void {
         const node = this.findNodeById(this.requirementDataProvider?.getAllNodes() || [], id);
         if (node instanceof TestCase) {
-            console.log(node.parameters);
             var parsedParameters = JSON.parse(parameters);
             parsedParameters.forEach((parameter: any) => {
                 parameter.value = parameter.value.split(',').map((item: string) => item.trim());
             });
             node.parameters = parsedParameters;
-            console.log(node.parameters);
             this.requirementDataProvider?.refresh();
         }
     }
@@ -193,15 +210,15 @@ export class TabularViewProvider {
     private static updateArray(id: string, field: string, value: string): void {
         const node = this.findNodeById(this.requirementDataProvider?.getAllNodes() || [], id);
         if (node instanceof TestCase) {
-            if (field === 'steps' || field === 'prerequisites' || field === 'testData' || field === 'expectedResults') {
+            if (field === 'steps' || field === 'prerequisites') {
                 node[field] = value ? value.split(',').map(item => item.trim()) : [];
             }
             this.requirementDataProvider?.refresh();
         }
     }
 
-    private static getHtml(requirements: TreeNode[], expandedNodeIds: string[] = []): string {
-        const treeJson = JSON.stringify(requirements);
+    private static getHtml(expandedNodeIds: string[] = [], coverageActive: boolean): string {
+        const treeJson = JSON.stringify(this.allNodes);
         const expandedIdsJson = JSON.stringify(expandedNodeIds);
         return `
             <!DOCTYPE html>
@@ -369,6 +386,30 @@ export class TabularViewProvider {
                     .hidden {
                         display: none !important;
                     }
+
+                    .error-row {
+                        background-color:rgb(167, 86, 86) !important; /* light red */
+                    }
+                    .warning-row {
+                        background-color:rgb(202, 174, 96) !important; /* light red */
+                    }
+                    button:disabled, .modal-content button:disabled {
+                        opacity: 0.5;
+                        cursor: not-allowed;
+                        background: var(--vscode-button-background, #0e639c);
+                        color: var(--vscode-button-foreground, #fff);
+                    }
+
+                    tr.selected {
+                        outline: 2px solid var(--vscode-button-background, #0e639c) !important;
+                    }
+
+                    tr.selected.error-row,
+                    tr.selected.warning-row {
+                        color: #fff !important;
+                        font-weight: bold;
+                    }
+                    
                 </style>
             </head>
             <body>
@@ -378,6 +419,7 @@ export class TabularViewProvider {
                     <button id="addTest">Add Test</button>
                     <button id="addTestCase">Add Test Case</button>
                     <button id="deleteRow">Delete Row</button>
+                    <button id="removeIcons">Remove Errors/Warnings</button>
                 </div>
                 <table>
                     <thead>
@@ -390,8 +432,6 @@ export class TabularViewProvider {
                             <th>Status</th>
                             <th>Steps</th>
                             <th>Prerequisites</th>
-                            <th>Test Data</th>
-                            <th>Expected Results</th>
                             <th>Parameters</th>
                         </tr>
                     </thead>
@@ -439,13 +479,25 @@ export class TabularViewProvider {
                     const tree = ${treeJson};
                     let selectedRow = null;
                     const vscode = acquireVsCodeApi();
+                    let coverageActive = ${coverageActive};
 
                     function renderRow(node, parentId = null) {
+                        let rowClass = '';
+                        if (node.iconPath && (typeof node.iconPath === 'object')){
+                            if (node.iconPath.id === 'diff-modified' || node.iconPath.id === 'debug-step-over') {
+                                rowClass = 'warning-row';
+                            }else if (node.iconPath.id === 'diff-removed') {
+                                rowClass = 'error-row';
+                            }
+                        }
                         const hasChildren = node.children && node.children.length > 0;
+                        const level = node.level || '';
                         return \`
-                            <tr data-id="\${node.id}" data-parent-id="\${parentId}" class="\${parentId ? 'hidden' : ''}">
+                            <tr data-id="\${node.id}" data-parent-id="\${parentId}" class="\${parentId ? 'hidden' : ''} \${rowClass}">
                                 <td>
-                                    \${hasChildren ? '<span class="expandable" data-loaded="false">[+]</span>' : ''}
+                                    \${hasChildren 
+                                        ? \`<span class="expandable" data-loaded="false">[+] \${level}</span>\` 
+                                        : \`<span data-loaded="false">\${level}</span>\`}
                                 </td>
                                 <td>
                                     \${node.label || ''}
@@ -456,8 +508,6 @@ export class TabularViewProvider {
                                 <td>\${node.status || ''}</td>
                                 <td>\${node.contextValue === 'testCase' ? '<button class="manage-array" data-field="steps">Manage</button>' : ''}</td>
                                 <td>\${node.contextValue === 'testCase' ? '<button class="manage-array" data-field="prerequisites">Manage</button>' : ''}</td>
-                                <td>\${node.contextValue === 'testCase' ? '<button class="manage-array" data-field="testData">Manage</button>' : ''}</td>
-                                <td>\${node.contextValue === 'testCase' ? '<button class="manage-array" data-field="expectedResults">Manage</button>' : ''}</td>
                                 <td>
                                     \${node.contextValue === 'testCase' ? '<button class="manage-parameters">Manage</button>' : ''}
                                 </td>
@@ -470,10 +520,39 @@ export class TabularViewProvider {
                     }
     
                     function loadChildren(nodeId, children) {
+                        function removeDescendants(parentId) {
+                            document.querySelectorAll(\`tr[data-parent-id="\${parentId}"]\`).forEach(childRow => {
+                                const childId = childRow.getAttribute('data-id');
+                                removeDescendants(childId); // Recursively remove grandchildren
+                                childRow.remove();
+                            });
+                        }
+                        removeDescendants(nodeId);
+
                         const parentRow = document.querySelector(\`tr[data-id="\${nodeId}"]\`);
                         const childRowsHtml = renderRows(children, nodeId);
                         parentRow.insertAdjacentHTML('afterend', childRowsHtml);
                     }
+
+                    document.addEventListener('DOMContentLoaded', () => {
+                        const removeIconsBtn = document.getElementById('removeIcons');
+                        if (coverageActive) {
+                            removeIconsBtn.style.display = '';
+                        } else {
+                            removeIconsBtn.style.display = 'none';
+                        }
+                    });
+
+                    document.getElementById('removeIcons').addEventListener('click', () => {
+                        vscode.postMessage({ command: 'removeIcons' });
+                    });
+
+                    window.addEventListener('message', event => {
+                        if (event.data.command === 'iconsRemoved') {
+                            document.getElementById('removeIcons').style.display = 'none';
+
+                        }
+                    });
     
                     document.getElementById('requirementsTable').innerHTML = renderRows(tree);
                     updateButtonStates();
@@ -483,11 +562,13 @@ export class TabularViewProvider {
                             const expander = event.target;
                             const row = expander.closest('tr');
                             const id = row.getAttribute('data-id');
-                            const isExpanded = expander.textContent === '[-]';
+                             const node = findNodeById(tree, id);
+                            const level = node && node.level ? node.level : '';
+                            const isExpanded = expander.textContent.includes('[-]');
                             const alreadyLoaded = expander.getAttribute('data-loaded') === 'true';
 
                             if (isExpanded) {
-                                expander.textContent = '[+]';
+                                expander.textContent = \`[+] \${level}\`;	
                                 collapseDescendants(id);
                             } else {
                                 if (!alreadyLoaded) {
@@ -500,7 +581,7 @@ export class TabularViewProvider {
                                 document.querySelectorAll(\`tr[data-parent-id="\${id}"]\`).forEach(childRow => {
                                     childRow.classList.remove('hidden');
                                 });
-                                expander.textContent = '[-]';
+                                expander.textContent = \`[-] \${level}\`;
                             }
                         } else if (event.target.closest('tr')) {
                             const row = event.target.closest('tr');
@@ -545,13 +626,11 @@ export class TabularViewProvider {
 
                     function addNode(type) {
                         const parentId = selectedRow ? selectedRow.getAttribute('data-id') : null;
-                        const parentType = selectedRow ? selectedRow.children[2].textContent.trim().toLowerCase() : null;
-
+                        const parentType = selectedRow ? selectedRow.children[3].textContent.trim().toLowerCase() : null;
                         if ((parentType === 'testcase' || ((type === 'requirement' || type==='test') && parentType !== 'requirement') || (type === 'testcase' && parentType !== 'test')) && parentType) {
                             alert('Invalid operation: Cannot add this type of node here.');
                             return;
                         }
-
                         const newRow = document.createElement('tr');
                         newRow.innerHTML = \`
                                 <td><input type="text" placeholder="Name" class="expandable-input"></td>
@@ -577,8 +656,6 @@ export class TabularViewProvider {
                                 </td>
                                 <td>\${type === 'testcase' ? '<input type="text" placeholder="Steps" class="expandable-input">' : ''}</td>
                                 <td>\${type === 'testcase' ? '<input type="text" placeholder="Prerequisites" class="expandable-input">' : ''}</td>
-                                <td>\${type === 'testcase' ? '<input type="text" placeholder="Test Data" class="expandable-input">' : ''}</td>
-                                <td>\${type === 'testcase' ? '<input type="text" placeholder="Expected Results" class="expandable-input">' : ''}</td>
                                 <td>\${type === 'testcase' ? '<input type="text" placeholder="Parameters" class="expandable-input">' : ''}</td>
                             \`;
 
@@ -652,8 +729,6 @@ export class TabularViewProvider {
                             status: type === 'requirement' ? selects[1]?.value : undefined,
                             steps: type === 'testcase' ? inputs[2]?.value.trim().split(',').map(s => s.trim()) : [],
                             prerequisites: type === 'testcase' ? inputs[3]?.value.trim().split(',').map(s => s.trim()) : [],
-                            testData: type === 'testcase' ? inputs[4]?.value.trim().split(',').map(s => s.trim()) : [],
-                            expectedResults: type === 'testcase' ? inputs[5]?.value.trim().split(',').map(s => s.trim()) : [],
                             parameters: type === 'testcase' ? inputs[6]?.value.trim().split(',').map(s => s.trim()) : [],
                             children: [],
                             parentId: parentId,
@@ -677,7 +752,9 @@ export class TabularViewProvider {
                             const childId = childRow.getAttribute('data-id');
                             const expander = childRow.querySelector('.expandable');
                             if (expander) {
-                                expander.textContent = '[+]';
+                                const node = findNodeById(tree, childId);
+                                const level = node && node.level ? node.level : '';
+                                expander.textContent = \`[+] \${level}\`;
                                 expander.setAttribute('data-loaded', 'false');
                             }
                             childRow.classList.add('hidden');
@@ -714,8 +791,7 @@ export class TabularViewProvider {
                             return;
                         }
 
-                        const rowType = selectedRow.children[2].textContent.trim().toLowerCase(); 
-                        console.log(rowType);
+                        const rowType = selectedRow.children[3].textContent.trim().toLowerCase(); 
                         if (rowType === 'requirement') {
                             addRequirementButton.disabled = false;
                             addTestButton.disabled = false;
@@ -746,7 +822,7 @@ export class TabularViewProvider {
                         } else if (rowType === 'test') {
                             return false; // Tests are not editable
                         } else if (rowType === 'testcase') {
-                            return field === 'steps' || field === 'prerequisites' || field === 'testData' || field === 'expectedResults' || field === 'parameters';
+                            return field === 'steps' || field === 'prerequisites' || field === 'parameters';
                         }
                         return false; // Default to not editable
                     }
@@ -758,7 +834,7 @@ export class TabularViewProvider {
                         const row = cell.closest('tr');
                         const rowId = row.getAttribute('data-id');
                         const columnIndex = Array.from(cell.parentNode.children).indexOf(cell);
-                        const rowType = row.children[2].textContent.trim().toLowerCase();
+                        const rowType = row.children[3].textContent.trim().toLowerCase(); //treba 3
 
                         const editableColumns = {
                             1: 'label', // Name column
@@ -767,8 +843,6 @@ export class TabularViewProvider {
                             5: 'status', // Status column
                             6: 'steps', // Steps column
                             7: 'prerequisites', // Prerequisites column
-                            8: 'testData', // Test Data column
-                            9: 'expectedResults', // Expected Results column
                             // 9: 'parameters', // Parameters column
                         };
 
@@ -777,7 +851,9 @@ export class TabularViewProvider {
                         const field = editableColumns[columnIndex];
                         const currentValue = cell.querySelector('.name-text')?.textContent.trim() || cell.textContent.trim();
 
-                        if (!canUpdate(row.children[2].textContent.trim().toLowerCase(), field)) {
+                        console.log(field);
+                        if (!canUpdate(row.children[3].textContent.trim().toLowerCase(), field)) {
+                            console.log("CANT UPDATE");
                             return;
                         }
 
@@ -843,13 +919,13 @@ export class TabularViewProvider {
                             return;
                         }
 
-                        if (['steps', 'prerequisites', 'testData', 'expectedResults', 'parameters'].includes(field)) {
+                        if (['steps', 'prerequisites', 'parameters'].includes(field)) {
                             node[field] = newValue ? newValue.split(',').map(item => item.trim()) : [];
                         } else {
                             node[field] = newValue;
                         }
                             
-                        if (['steps', 'prerequisites', 'testData', 'expectedResults', 'parameters'].includes(field)) {
+                        if (['steps', 'prerequisites', 'parameters'].includes(field)) {
                             // Update the cell content with the joined array
                             cell.textContent = Array.isArray(node[field]) ? node[field].join(', ') : '';
                         }
@@ -870,8 +946,8 @@ export class TabularViewProvider {
                     const expandedNodeIds = ${expandedIdsJson};
                     expandedNodeIds.forEach(id => {
                         const expander = document.querySelector(\`tr[data-id="\${id}"] .expandable\`);
-                        if (expander && expander.textContent === '[+]') {
-                            expander.click(); // Trigger expansion
+                        if (expander && expander.textContent.includes('[+]')) {
+                            expander.click();
                         }
                     });
 

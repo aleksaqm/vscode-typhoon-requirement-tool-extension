@@ -15,14 +15,16 @@ export class TestCaseWebviewProvider {
 
         panel.webview.onDidReceiveMessage((message) => {
             if (message.command === 'submit') {
-                const { name, scenario, steps, prerequisites, testData, expectedResults, parameters } = message.data;
-                if (name && scenario && steps && prerequisites && expectedResults && parameters) {
+                const { name, scenario, steps, prerequisites, parameters } = message.data;
+                console.log(message.data);
+                if (name && scenario && steps && prerequisites && parameters) {
                     if (node) {
                         const id = node.id!;
-                        onSubmit(new TestCase(id, name, scenario, steps, prerequisites, testData, expectedResults, parameters));
+                        onSubmit(new TestCase(id, name, scenario, steps, prerequisites, parameters));
                         panel.dispose();
+                        return;
                     }
-                    const newTestCase = new TestCase(getUniqueId(), name, scenario, steps, prerequisites, testData, expectedResults, parameters);
+                    const newTestCase = new TestCase(getUniqueId(), name, scenario, steps, prerequisites, parameters);
                     onSubmit(newTestCase);
                     panel.dispose();
                 } else {
@@ -39,8 +41,6 @@ export class TestCaseWebviewProvider {
         const scenario = node ? node.scenario : '';
         const steps = node ? node.steps : [];
         const prerequisites = node ? node.prerequisites : [];
-        const testData = node ? node.testData : [];
-        const expectedResults = node ? node.expectedResults : [];
         const parameters = node ? node.parameters : [];
     
         return `
@@ -104,8 +104,6 @@ export class TestCaseWebviewProvider {
     
                     ${this.getDynamicListHtml('steps', 'Steps', steps)}
                     ${this.getDynamicListHtml('prerequisites', 'Prerequisites', prerequisites)}
-                    ${this.getDynamicListHtml('testData', 'Test Data', testData)}
-                    ${this.getDynamicListHtml('expectedResults', 'Expected Results', expectedResults)}
                     <br>
                     <label for="parameters">Parameters:</label>
                     <div id="parametersSection">
@@ -114,7 +112,7 @@ export class TestCaseWebviewProvider {
                             <vscode-option value="string">String</vscode-option>
                             <vscode-option value="int">Integer</vscode-option>
                             <vscode-option value="float">Float</vscode-option>
-                            <vscode-option value="bool">Boolean</vscode-option>
+                            <vscode-option value="boolean">Boolean</vscode-option>
                             <vscode-option value="array">Array</vscode-option>
                         </vscode-dropdown>
                         <vscode-text-field id="parameterValue" placeholder="Parameter Value"></vscode-text-field>
@@ -132,7 +130,9 @@ export class TestCaseWebviewProvider {
                                 .join('')}
                         </ul>
                     </div>
-                    <vscode-button id="submitButton">${node ? 'Save Changes' : 'Submit'}</vscode-button>
+                    <vscode-button id="submitButton" type="button" appearance="primary">
+                        ${node ? 'Save Changes' : 'Submit'}
+                    </vscode-button>
                 </form>
     
                 <script>
@@ -140,13 +140,12 @@ export class TestCaseWebviewProvider {
                     const lists = {
                         steps: ${JSON.stringify(steps)},
                         prerequisites: ${JSON.stringify(prerequisites)},
-                        testData: ${JSON.stringify(testData)},
-                        expectedResults: ${JSON.stringify(expectedResults)}
                     };
     
                     function addItem(listName) {
                         const input = document.getElementById(\`\${listName}Input\`);
                         const value = input.value.trim();
+                        console.log(value);
                         if (value) {
                             lists[listName].push(value);
                             updateList(listName);
@@ -177,11 +176,15 @@ export class TestCaseWebviewProvider {
                     // Initialize lists with existing values
                     Object.keys(lists).forEach(updateList);
 
-                    const parameters = ${node ? JSON.stringify(parameters) ?? [] : []};
+                    const parameters = ${node ? JSON.stringify(parameters) : '[]'};
 
-                    ['steps', 'prerequisites', 'testData', 'expectedResults'].forEach(listName => {
+                    ['steps', 'prerequisites'].forEach(listName => {
                         document.getElementById(\`add\${listName}Button\`)
                             .addEventListener('click', () => addItem(listName));
+                    });
+
+                    document.getElementById('testCaseForm').addEventListener('submit', (e) => {
+                        e.preventDefault();
                     });
 
                     document.getElementById('addParameterButton').addEventListener('click', () => {
@@ -205,7 +208,7 @@ export class TestCaseWebviewProvider {
                                 });
                                 return;
                             }
-                            if (type === 'bool'){
+                            if (type === 'boolean'){
                                 value = value.toLowerCase();
                                 console.log(value);
                             }
@@ -237,12 +240,7 @@ export class TestCaseWebviewProvider {
                         }
                     });
 
-                    document.getElementById('removeParamButton').addEventListener('click', (e) => {
-                        updateParametersList();
-                    })
-
                     function removeParameter(index) {
-                        console.log("AAAAAAAAAAAAAAAAAAAAAA");
                         parameters.splice(index, 1);
                         updateParametersList();
                     }
@@ -263,12 +261,11 @@ export class TestCaseWebviewProvider {
                         });
                     }
 
-                    
     
                     document.getElementById('submitButton').addEventListener('click', () => {
                         const name = document.getElementById('name').value;
                         const scenario = document.getElementById('scenario').value;
-    
+
                         vscode.postMessage({
                             command: 'submit',
                             data: {
@@ -276,8 +273,6 @@ export class TestCaseWebviewProvider {
                                 scenario,
                                 steps: lists.steps,
                                 prerequisites: lists.prerequisites,
-                                testData: lists.testData,
-                                expectedResults: lists.expectedResults,
                                 parameters,
                             }
                         });
@@ -289,7 +284,7 @@ export class TestCaseWebviewProvider {
                                 return Number.isInteger(Number(value)); // Checks if the value is an integer
                             case 'float':
                                 return !isNaN(value) && Number(value) === parseFloat(value); // Checks if the value is a float
-                            case 'bool':
+                            case 'boolean':
                                 return value.toLowerCase() === 'true' || value.toLowerCase() === 'false'; // Matches "true" or "false" (case-insensitive)
                             case 'string':
                                 return typeof value === 'string'; // Always true for strings
@@ -308,6 +303,16 @@ export class TestCaseWebviewProvider {
                     document.addEventListener('DOMContentLoaded', () => {
                         updateParametersList();
                     });
+
+                    window.addEventListener('DOMContentLoaded', () => {
+                        const submitButton = document.getElementById('submitButton');
+                        if (submitButton) {
+                            submitButton.addEventListener('click', () => {
+                            });
+                        } else {
+                            console.error("Submit button not found in DOM");
+                        }
+                    });
                 </script>
             </body>
             </html>
@@ -320,12 +325,12 @@ export class TestCaseWebviewProvider {
                 (item, index) => `
                 <li>
                     ${item}
-                    <vscode-button class="remove-button" ${index})">Remove</vscode-button>
+                    <button class="remove-button" data-index="${index}" data-list="${listName}">Remove</button>
                 </li>
             `
             )
             .join('');
-    
+
         return `
             <label for="${listName}">${label}:</label>
             <vscode-text-field id="${listName}Input" placeholder="Enter ${label.toLowerCase()}" ></vscode-text-field>
