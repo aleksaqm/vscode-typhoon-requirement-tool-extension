@@ -33,8 +33,9 @@ The **Typhoon Requirement Tool** is a Visual Studio Code extension designed to s
 - **Coverage Analysis**: Visualize coverage gaps and resolve conflicts interactively.
 - **Multiple Views**: Switch between Tree, Details, and Tabular views for flexible management.
 
-> ![Tree and Details View](media/tree-details-view.png)
-> *Screenshot: Tree View and Details View side by side.*
+> <img src="media/documentation-files/ReqToolStart.png" alt="Details View" width="400"/>
+>
+> *Screenshot: Tree View and Details View when extension opens.
 
 ---
 
@@ -61,25 +62,28 @@ The **Typhoon Requirement Tool** is a Visual Studio Code extension designed to s
 The Tree View displays your requirements hierarchy. Right-click on any node to add requirements, tests, or test cases.
 
 - **Requirement**: Represents a functional or non-functional requirement.
-- **Test**: Linked to a requirement, represents a test group or file.
-- **Test Case**: Linked to a test, represents an individual test scenario.
+- **Test**: Linked to a requirement, represents a test file.
+- **Test Case**: Linked to a test, represents an individual test scenario or test function.
 
-> ![Tree View Context Menu](media/tree-context-menu.png)
+> <img src="media/documentation-files/ReqTree.png" alt="Requirements Tree View" width="400"/>
+>
 > *Screenshot: Tree View with context menu open.*
 
 ### Details View
 
 Selecting a node in the Tree View displays its details in the Details View, including all properties and parameters.
 
-> ![Details View](media/details-view.png)
-> *Screenshot: Details View showing a test case with parameters.*
+> <img src="media/documentation-files/TreeAndDetails.gif" alt="Requirements Tree And Details View" width="400"/>
+>
+> *Gif: Details View showing a requirements details when selected.*
 
 ### Tabular View
 
 Switch to the Tabular View for a spreadsheet-like interface, allowing bulk editing and quick overview of all items.
 
-> ![Tabular View](media/tabular-view.png)
-> *Screenshot: Tabular View with editable fields.*
+> <img src="media/documentation-files/tabularView.gif" alt="Requirements Tree And Details View" width="700"/>
+>
+> *Screenshot: Tabular View.*
 
 ---
 
@@ -90,7 +94,8 @@ Switch to the Tabular View for a spreadsheet-like interface, allowing bulk editi
 
 - **Delete**: Use the trash icon or context menu to remove items. Deleting a requirement removes all its children.
 
-> ![Edit and Delete](media/edit-delete.gif)
+> <img src="media/documentation-files/editAndDelete.gif" alt="Editing and deleting requirements" width="700"/>
+>
 > *Short video: Editing and deleting a requirement and its children.*
 
 ---
@@ -107,8 +112,9 @@ Switch to the Tabular View for a spreadsheet-like interface, allowing bulk editi
 - **Import**: Import requirements from a CSV file (supports ReqView-compatible format).
 - **Export**: Export requirements to CSV for reporting or further editing.
 
-> ![Import Export Dialogs](media/import-export.png)
-> *Screenshot: Import/export dialogs.*
+> <img src="media/documentation-files/import-export.gif" alt="Import and Export to reqif/csv" width="700"/>
+>
+> *Short video: Import and Export to reqif/csv.*
 
 ---
 
@@ -120,7 +126,8 @@ Generate pytest-compatible test code directly from your requirements tree:
 2. Select the output folder.
 3. The extension generates Python test files based on your requirements and test cases.
 
-> ![Generate Tests](media/generate-tests.gif)
+> <img src="media/documentation-files/generating.gif" alt="Generating tests" width="700"/>
+>
 > *Short demo: Generating tests and viewing the output files.*
 
 ---
@@ -132,12 +139,13 @@ The Coverage Check feature compares your requirements and tests with the existin
 - **Visual Coverage Report**: See missing, extra, and modified requirements/tests/test cases.
 - **Interactive Conflict Resolution**: Resolve differences directly from the coverage report webview.
 - **Node Highlighting**: Tree nodes are color-coded based on coverage status (e.g., missing, modified, skipped).
+- **Ignore file**: User can define .typhoonignore (same as .gitignore) file where he can write what files to ignore when he run coverage check.
+  
 
-> ![Coverage Report](media/coverage-report.png)
-> *Screenshot: Coverage report webview with highlighted differences.*
 
-> ![Conflict Resolution](media/conflict-resolution.gif)
-> *Demo: Resolving a conflict using the "Resolve This Conflict" button.*
+> <img src="media/documentation-files/coverage-check.gif" alt="Coverage check" width="700"/>
+>
+> *Short demo: Resolving conflicts with test project.*
 
 ---
 
