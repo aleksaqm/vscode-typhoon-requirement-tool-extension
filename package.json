@@ -14,8 +14,275 @@
   "contributes": {
     "commands": [
       {
-        "command": "typhoon-requirement-tool.helloWorld",
-        "title": "Hello World"
+        "command": "typhoon-requirement-tool.addRequirement",
+        "title": "Add Requirement",
+        "icon": {
+          "light": "media/light/plus-square.svg",
+          "dark": "media/dark/plus-square.svg"
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.addTest",
+        "title": "Add Test",
+        "icon": {
+          "light": "media/light/file-plus.svg",
+          "dark": "media/dark/file-plus.svg"
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.addTestCase",
+        "title": "Add Test Case",
+        "icon": {
+          "light": "media/light/plus-circle.svg",
+          "dark": "media/dark/plus-circle.svg"
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.editRequirement",
+        "title": "Edit Requirement",
+        "icon": {
+          "light": "media/light/edit.svg",
+          "dark": "media/dark/edit.svg"
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.editTest",
+        "title": "Edit Test",
+        "icon": {
+          "light": "media/light/edit.svg",
+          "dark": "media/dark/edit.svg"
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.editTestCase",
+        "title": "Edit Test Case",
+        "icon": {
+          "light": "media/light/edit.svg",
+          "dark": "media/dark/edit.svg"
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.deleteNode",
+        "title": "Delete Node",
+        "icon": {
+          "light": "media/light/trash.svg",
+          "dark": "media/dark/trash.svg"
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.selectNode",
+        "title": "Select Node",
+        "icon": {
+          "light": "media/light/edit.svg",
+          "dark": "media/dark/edit.svg"
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.exportToReqIF",
+        "title": "Export to ReqIF",
+        "icon": {
+          "light": "media/light/edit.svg",
+          "dark": "media/dark/edit.svg"
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.importFromReqIF",
+        "title": "Import from ReqIF",
+        "icon": {
+          "light": "media/light/edit.svg",
+          "dark": "media/dark/edit.svg"
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.exportToCSV",
+        "title": "Export to CSV",
+        "icon": {
+          "light": "media/light/edit.svg",
+          "dark": "media/dark/edit.svg"
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.importFromCSV",
+        "title": "Import from CSV",
+        "icon": {
+          "light": "media/light/edit.svg",
+          "dark": "media/dark/edit.svg"
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.openTabularView",
+        "title": "Open Tabular View",
+        "icon": {
+          "light": "media/light/table.svg",
+          "dark": "media/dark/table.svg"
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.generateTestsFromReqif",
+        "title": "Generate Test Files From reqIF file",
+        "icon": {
+          "light": "media/light/edit.svg",
+          "dark": "media/dark/edit.svg"
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.generateTests",
+        "title": "Generate Test Files",
+        "icon": {
+          "light": "media/light/play-circle.svg",
+          "dark": "media/dark/play-circle.svg"
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.coverageCheck",
+        "title": "Coverage Check",
+        "icon": {
+          "light": "media/light/check-circle.svg",
+          "dark": "media/dark/check-circle.svg"
+        }
+      },
+      {
+        "command": "typhoon-requirement-tool.removeIcons",
+        "title": "Remove Icons",
+        "icon": {
+          "light": "media/light/broom.svg",
+          "dark": "media/dark/broom.svg"
+        }
+      },
+      {
+        
+        "command": "typhoon-requirement-tool.restart",
+        "title": "Restart Requirement Project",
+        "icon": {
+          "light": "media/light/refresh.svg",
+          "dark": "media/dark/refresh.svg"
+        }
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "typhoon-requirements-tree",
+          "title": "Typhoon Requirement Tool",
+          "icon": "media/tree-structure.svg"
+        }
+      ]
+    },
+    "views": {
+      "typhoon-requirements-tree": [
+        {
+          "id": "typhoon-requirement-tool.tree",
+          "name": "Typhoon Requirement Tool Tree",
+          "icon": "media/api-wizard.svg"
+        },
+        {
+          "id": "typhoon-requirement-tool.details",
+          "name": "Requirement Details",
+          "type": "webview",
+          "icon": "media/api-wizard.svg"
+        }
+      ]
+    },
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "typhoon-requirement-tool.addRequirement",
+          "when": "viewItem == requirement",
+          "group": "inline"
+        },
+        {
+          "command": "typhoon-requirement-tool.addTest",
+          "when": "viewItem == requirement",
+          "group": "inline"
+        },
+        {
+          "command": "typhoon-requirement-tool.addTestCase",
+          "group": "inline",
+          "when": "viewItem == test"
+        },
+        {
+          "command": "typhoon-requirement-tool.editRequirement",
+          "when": "viewItem == requirement",
+          "group": "inline"
+        },
+        {
+          "command": "typhoon-requirement-tool.editTest",
+          "when": "viewItem == test",
+          "group": "inline"
+        },
+        {
+          "command": "typhoon-requirement-tool.editTestCase",
+          "when": "viewItem == testCase",
+          "group": "inline"
+        },
+        {
+          "command": "typhoon-requirement-tool.deleteNode",
+          "group": "inline"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "typhoon-requirement-tool.addRequirement",
+          "when": "view == typhoon-requirement-tool.tree",
+          "group": "navigation"
+        },
+        {
+          "command": "typhoon-requirement-tool.generateTests",
+          "when": "view == typhoon-requirement-tool.tree && typhoon-requirement-tool.hasRequirements",
+          "group": "navigation"
+        },
+        {
+          "command": "typhoon-requirement-tool.restart",
+          "when": "view == typhoon-requirement-tool.tree && typhoon-requirement-tool.hasRequirements",
+          "group": "navigation"
+        },
+        {
+          "command": "typhoon-requirement-tool.openTabularView",
+          "when": "view == typhoon-requirement-tool.tree && typhoon-requirement-tool.hasRequirements",
+          "group": "navigation"
+        },
+        {
+          "command": "typhoon-requirement-tool.coverageCheck",
+          "when": "view == typhoon-requirement-tool.tree && typhoon-requirement-tool.hasRequirements",
+          "group": "navigation"
+        },
+        {
+          "command": "typhoon-requirement-tool.importFromReqIF",
+          "when": "view == typhoon-requirement-tool.tree"
+        },
+        {
+          "command": "typhoon-requirement-tool.importFromCSV",
+          "when": "view == typhoon-requirement-tool.tree"
+        },
+        {
+          "command": "typhoon-requirement-tool.exportToReqIF",
+          "when": "view == typhoon-requirement-tool.tree && typhoon-requirement-tool.hasRequirements"
+        },
+        {
+            "command": "typhoon-requirement-tool.exportToCSV",
+            "when": "view == typhoon-requirement-tool.tree && typhoon-requirement-tool.hasRequirements"
+        },
+        {
+          "command": "typhoon-requirement-tool.removeIcons",
+          "when": "view == typhoon-requirement-tool.tree && typhoonRequirementTool.coverageActive",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "typhoon-requirement-tool.addTest",
+          "when": "viewItem == requirement"
+        },
+        {
+          "command": "typhoon-requirement-tool.addTestCase",
+          "when": "viewItem == test"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "typhoon-requirement-tool.tree",
+        "contents": "Welcome to the Typhoon Requirement Tool! \n No requirements found.\n[Add Requirement](command:typhoon-requirement-tool.addRequirement)"
       }
     ]
   },
@@ -28,14 +295,19 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.99.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
+    "@types/vscode": "^1.99.1",
+    "@types/xml2js": "^0.4.14",
     "@typescript-eslint/eslint-plugin": "^8.28.0",
     "@typescript-eslint/parser": "^8.28.0",
-    "eslint": "^9.23.0",
-    "typescript": "^5.8.2",
     "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.4.1"
+    "@vscode/test-electron": "^2.4.1",
+    "eslint": "^9.23.0",
+    "typescript": "^5.8.2"
+  },
+  "dependencies": {
+    "xml2js": "^0.6.2",
+    "xmlbuilder": "^15.1.1"
   }
 }

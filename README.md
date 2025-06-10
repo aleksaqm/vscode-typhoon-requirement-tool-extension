@@ -1,71 +1,179 @@
-# typhoon-requirement-tool README
+# Typhoon Requirement Tool VS Code Extension
 
-This is the README for your extension "typhoon-requirement-tool". After writing up a brief description, we recommend including the following sections.
-
-## Features
-
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
-
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
-
-## Requirements
-
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
-
-## Extension Settings
-
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
-This extension contributes the following settings:
-
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
-
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
+The **Typhoon Requirement Tool** is a Visual Studio Code extension designed to streamline requirement specification, test management, and automated test code generation for Python projects using pytest. It provides an intuitive interface for managing requirements, tests, and test cases, and integrates with ReqIF and CSV formats for import/export. The extension also offers advanced coverage checking and conflict resolution features.
 
 ---
 
-## Following extension guidelines
+## Table of Contents
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+- [Features Overview](#features-overview)
+- [Getting Started](#getting-started)
+- [Managing Requirements, Tests, and Test Cases](#managing-requirements-tests-and-test-cases)
+  - [Tree View](#tree-view)
+  - [Details View](#details-view)
+  - [Tabular View](#tabular-view)
+- [Editing and Deleting Items](#editing-and-deleting-items)
+- [Importing and Exporting Data](#importing-and-exporting-data)
+  - [ReqIF Format](#reqif-format)
+  - [CSV Format](#csv-format)
+- [Generating Test Code](#generating-test-code)
+- [Coverage Check and Conflict Resolution](#coverage-check-and-conflict-resolution)
+- [Example Workflow](#example-workflow)
+- [FAQ](#faq)
+- [Support](#support)
 
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+---
 
-## Working with Markdown
+## Features Overview
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
+- **Hierarchical Requirement Management**: Organize requirements, tests, and test cases in a tree structure.
+- **Rich Editing**: Add, edit, and delete requirements, tests, and test cases with detailed forms.
+- **Import/Export**: Seamless integration with ReqIF and CSV formats.
+- **Automated Test Generation**: Generate pytest-compatible test code from requirements.
+- **Coverage Analysis**: Visualize coverage gaps and resolve conflicts interactively.
+- **Multiple Views**: Switch between Tree, Details, and Tabular views for flexible management.
 
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
+> <img src="media/documentation-files/ReqToolStart.png" alt="Details View" width="400"/>
+>
+> *Screenshot: Tree View and Details View when extension opens.
 
-## For more information
+---
 
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+## Getting Started
 
-**Enjoy!**
+1. **Install the Extension**  
+   Download and install the Typhoon Requirement Tool from the VS Code Marketplace.
+
+2. **Install Required Python Library ⚠️**
+   
+   To enable test generation, make sure to install the companion Python library `pytest-typhoon-testgen`:
+   ```
+   pip install pytest-typhoon-testgen
+   ```
+   This library is required to:
+    1. Generate pytest test files based on your requirements and test cases.
+    2. Generate coverage check report and resolve conflicts between test project and requirements project.
+       
+   You can find everything about it here [pytest-typhoon-testgen](https://github.com/aleksaqm/pytest-typhoon-testgen)
+
+4. **Open the Extension**  
+   Open the "Typhoon Requirement Tool" view from the Activity Bar.
+
+5. **Initialize a Project**  
+   Start by adding your first requirement using the context menu or the command palette.
+
+> ![Getting Started GIF](media/getting-started.gif)
+> *Animated GIF: Installation and opening the extension.*
+
+---
+
+## Managing Requirements, Tests, and Test Cases
+
+### Tree View
+
+The Tree View displays your requirements hierarchy. Next to nodes are buttons to add, edit or delete requirement or test or test case.
+
+- **Requirement**: Represents a functional or non-functional requirement.
+- **Test**: Linked to a requirement, represents a test file.
+- **Test Case**: Linked to a test, represents an individual test scenario or test function.
+
+> <img src="media/documentation-files/ReqTree.png" alt="Requirements Tree View" width="400"/>
+>
+> *Screenshot: Tree View with context menu open.*
+
+### Details View
+
+Selecting a node in the Tree View displays its details in the Details View, including all properties and parameters.
+
+> <img src="media/documentation-files/TreeAndDetails.gif" alt="Requirements Tree And Details View" width="400"/>
+>
+> *Gif: Details View showing a requirements details when selected.*
+
+### Tabular View
+
+Switch to the Tabular View for a spreadsheet-like interface, allowing adding/editing/deleting and quick overview of all items.
+
+> <img src="media/documentation-files/tabularView.gif" alt="Requirements Tree And Details View" width="700"/>
+>
+> *Screenshot: Tabular View.*
+
+---
+
+## Editing and Deleting Items
+
+- **Edit**: Use the pencil icon or context menu to edit any requirement, test, or test case.  
+  *Example: Editing a test case updates its scenario, steps, prerequisites, and parameters.*
+
+- **Delete**: Use the trash icon or context menu to remove items. Deleting a requirement removes all its children.
+
+> <img src="media/documentation-files/editAndDelete.gif" alt="Editing and deleting requirements" width="700"/>
+>
+> *Short video: Editing and deleting a requirement and its children.*
+
+---
+
+## Importing and Exporting Data
+
+### ReqIF Format
+
+- **Import**: Use the command palette or context menu to import requirements from a ReqIF file.
+- **Export**: Export your current requirements tree to ReqIF for use in other tools.
+> Reqif file structure supports Reqif Studio format.
+
+### CSV Format
+
+- **Import**: Import requirements from a CSV file (supports ReqView-compatible format).
+- **Export**: Export requirements to CSV for reporting or further editing.
+
+> <img src="media/documentation-files/import-export.gif" alt="Import and Export to reqif/csv" width="700"/>
+>
+> *Short video: Import and Export to reqif/csv.*
+
+---
+
+## Generating Test Code
+
+Generate pytest-compatible test code directly from your requirements tree:
+
+1. Click **Generate Tests** in the view title bar or use the command palette.
+2. Select the output folder.
+3. The extension generates Python test files based on your requirements and test cases.
+
+> <img src="media/documentation-files/generating.gif" alt="Generating tests" width="700"/>
+>
+> *Short demo: Generating tests and viewing the output files.*
+
+---
+
+## Coverage Check and Conflict Resolution
+
+The Coverage Check feature compares your requirements and tests with the existing test project:
+
+- **Visual Coverage Report**: See missing, extra, and modified requirements/tests/test cases.
+- **Interactive Conflict Resolution**: Resolve differences directly from the coverage report webview.
+- **Node Highlighting**: Tree nodes are color-coded based on coverage status (e.g., missing, modified, skipped).
+- **Ignore file**: User can define .typhoonignore (same as .gitignore) file where he can write what files to ignore when he run coverage check.
+  
+
+
+> <img src="media/documentation-files/coverage-check.gif" alt="Coverage check" width="700"/>
+>
+> *Short demo: Resolving conflicts with test project.*
+
+---
+
+## Example Workflow
+
+1. **Define Requirements**: Add requirements and organize them hierarchically.
+2. **Add Tests and Test Cases**: For each requirement, add tests and detailed test cases.
+3. **Import/Export**: Exchange data with ReqIF/CSV as needed.
+4. **Generate Tests**: Produce pytest code for your project.
+5. **Run Coverage Check**: Compare your requirements with the test project and resolve any conflicts.
+
+---
+
+## Support
+
+For issues, feature requests, or contributions, please visit the [GitHub repository](https://github.com/your-repo/typhoon-requirement-tool) or contact the maintainer.
+
+---
