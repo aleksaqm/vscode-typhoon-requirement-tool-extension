@@ -44,10 +44,22 @@ The **Typhoon Requirement Tool** is a Visual Studio Code extension designed to s
 1. **Install the Extension**  
    Download and install the Typhoon Requirement Tool from the VS Code Marketplace.
 
-2. **Open the Extension**  
+2. **Install Required Python Library ⚠️**
+   
+   To enable test generation, make sure to install the companion Python library `pytest-typhoon-testgen`:
+   ```
+   pip install pytest-typhoon-testgen
+   ```
+   This library is required to:
+    1. Generate pytest test files based on your requirements and test cases.
+    2. Generate coverage check report and resolve conflicts between test project and requirements project.
+       
+   You can find everything about it here [pytest-typhoon-testgen](https://github.com/aleksaqm/pytest-typhoon-testgen)
+
+4. **Open the Extension**  
    Open the "Typhoon Requirement Tool" view from the Activity Bar.
 
-3. **Initialize a Project**  
+5. **Initialize a Project**  
    Start by adding your first requirement using the context menu or the command palette.
 
 > ![Getting Started GIF](media/getting-started.gif)
