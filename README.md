@@ -59,7 +59,7 @@ The **Typhoon Requirement Tool** is a Visual Studio Code extension designed to s
 
 ### Tree View
 
-The Tree View displays your requirements hierarchy. Right-click on any node to add requirements, tests, or test cases.
+The Tree View displays your requirements hierarchy. Next to nodes are buttons to add, edit or delete requirement or test or test case.
 
 - **Requirement**: Represents a functional or non-functional requirement.
 - **Test**: Linked to a requirement, represents a test file.
@@ -79,7 +79,7 @@ Selecting a node in the Tree View displays its details in the Details View, incl
 
 ### Tabular View
 
-Switch to the Tabular View for a spreadsheet-like interface, allowing bulk editing and quick overview of all items.
+Switch to the Tabular View for a spreadsheet-like interface, allowing adding/editing/deleting and quick overview of all items.
 
 > <img src="media/documentation-files/tabularView.gif" alt="Requirements Tree And Details View" width="700"/>
 >
@@ -106,6 +106,7 @@ Switch to the Tabular View for a spreadsheet-like interface, allowing bulk editi
 
 - **Import**: Use the command palette or context menu to import requirements from a ReqIF file.
 - **Export**: Export your current requirements tree to ReqIF for use in other tools.
+> Reqif file structure supports Reqif Studio format.
 
 ### CSV Format
 
@@ -156,19 +157,6 @@ The Coverage Check feature compares your requirements and tests with the existin
 3. **Import/Export**: Exchange data with ReqIF/CSV as needed.
 4. **Generate Tests**: Produce pytest code for your project.
 5. **Run Coverage Check**: Compare your requirements with the test project and resolve any conflicts.
-
----
-
-## FAQ
-
-**Q:** Can I import requirements from ReqView?  
-**A:** Yes, import CSV files exported from ReqView using the "Import from CSV" command.
-
-**Q:** How do I resolve a modified test case?  
-**A:** Use the "Resolve This Conflict" button in the coverage report to choose between incoming and current values.
-
-**Q:** What happens if I delete a requirement?  
-**A:** All child tests and test cases will also be deleted.
 
 ---
 
