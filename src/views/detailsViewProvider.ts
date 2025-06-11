@@ -97,7 +97,7 @@ export class DetailsViewProvider implements vscode.WebviewViewProvider {
                         padding: 10px;
                     }
                     h2 {
-                        color: #007acc;
+                        color: var(--vscode-editor-foreground);
                     }
                     p {
                         margin: 5px 0;
