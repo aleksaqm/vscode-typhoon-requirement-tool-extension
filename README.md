@@ -174,6 +174,6 @@ The Coverage Check feature compares your requirements and tests with the existin
 
 ## Support
 
-For issues, feature requests, or contributions, please visit the [GitHub repository](https://github.com/your-repo/typhoon-requirement-tool) or contact the maintainer.
+For issues, feature requests, or contributions, please visit the [GitHub repository](https://github.com/aleksaqm/typhoon-requirement-tool-extension) or contact the maintainer.
 
 ---
