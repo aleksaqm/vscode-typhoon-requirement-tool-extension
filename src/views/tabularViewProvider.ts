@@ -184,13 +184,12 @@ export class TabularViewProvider {
         if (newNode.parentId) {
             const parentNode = this.findNodeById(allNodes, newNode.parentId);
             if (parentNode) {
-                parentNode.children = parentNode.children || [];
-                parentNode.children.push(nodeToAdd);
+                nodeToAdd.parent = parentNode;
+                this.requirementDataProvider?.addNode(nodeToAdd);
             }
         } else {
-            allNodes.push(nodeToAdd);
+            this.requirementDataProvider?.addNode(nodeToAdd);
         }
-    
         this.requirementDataProvider?.updateTree(allNodes);
         this.requirementDataProvider?.refresh();
     }
@@ -633,6 +632,7 @@ export class TabularViewProvider {
                         }
                         const newRow = document.createElement('tr');
                         newRow.innerHTML = \`
+                                <td></td>
                                 <td><input type="text" placeholder="Name" class="expandable-input"></td>
                                 <td><input type="text" placeholder="Description" class="expandable-input"></td>
                                 <td>\${type}</td>
