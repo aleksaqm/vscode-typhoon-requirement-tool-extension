@@ -195,6 +195,17 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         });
     }
 
+    addNode(node: TreeNode) {
+        this.requirements.push(node);
+        if (node.parent){
+            var parent = this.getNodeById(node.parent.id);
+            parent?.children.push(node);
+        }
+        this.updateLevels;
+        this.updateTree;
+        this.refresh;
+    }
+
     async deleteNode(node: TreeNode): Promise<Boolean> {
         const confirm = await vscode.window.showQuickPick(['Yes', 'No'], {
             placeHolder: `Delete requirement "${node.label}"?`,
