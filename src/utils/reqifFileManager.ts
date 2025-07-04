@@ -287,13 +287,48 @@ export class ReqifFileManager{
         
             const specObjectsMap = new Map<string, TreeNode>();
             const nodes: TreeNode[] = [];
+            let specTypeNameMap = new Map<string, string>();
+            let specObjectTypes;
+            try{
+                specObjectTypes = parsedReqIF['REQ-IF']['CORE-CONTENT']['REQ-IF-CONTENT']['SPEC-TYPES']['SPEC-OBJECT-TYPE'];
+            }
+            catch (error) {
+            }
+            if (specObjectTypes){
+                for (const specObjectType of Array.isArray(specObjectTypes) ? specObjectTypes : [specObjectTypes]) {
+                    const identifier = specObjectType['$']['IDENTIFIER'];
+                    const longName = specObjectType['$']['LONG-NAME'];
+                    if (identifier && longName) {
+                        console.log("DODAJEM U MAPU ", identifier, longName);
+                        specTypeNameMap.set(identifier, longName);
+                        console.log("specTypeNameMap.get(identifier): ", specTypeNameMap.get(identifier));
+                    }
+                    const specAttributes = specObjectType['SPEC-ATTRIBUTES'];
+                    if (specAttributes) {
+                        const attrs = Array.isArray(specAttributes) ? specAttributes : [specAttributes];
+                        for (const attrGroup of attrs) {
+                            for (const key of Object.keys(attrGroup)) {
+                                const attrDefs = Array.isArray(attrGroup[key]) ? attrGroup[key] : [attrGroup[key]];
+                                for (const attrDef of attrDefs) {
+                                    const attrId = attrDef['$']?.['IDENTIFIER'];
+                                    const attrLongName = attrDef['$']?.['LONG-NAME'];
+                                    if (attrId && attrLongName) {
+                                        specTypeNameMap.set(attrId, attrLongName);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         
             const specObjects = parsedReqIF['REQ-IF']['CORE-CONTENT']['REQ-IF-CONTENT']['SPEC-OBJECTS']['SPEC-OBJECT'];
             for (const specObject of Array.isArray(specObjects) ? specObjects : [specObjects]) {
-                const id = specObject['$']['IDENTIFIER'];
-                const type = specObject['TYPE']['SPEC-OBJECT-TYPE-REF'];
-                const values = specObject['VALUES']['ATTRIBUTE-VALUE-STRING'];
-        
+                let id = specObject['$']['IDENTIFIER'];
+                const type = specTypeNameMap.get(specObject['TYPE']['SPEC-OBJECT-TYPE-REF']);
+                const valuesObj = specObject['VALUES'];
+
+
                 let label = '';
                 let description = '';
                 let priority = '';
@@ -301,53 +336,76 @@ export class ReqifFileManager{
                 let steps: string[] = [];
                 let prerequisites: string[] = [];
                 let parameters: any[] = [];
-        
-                for (const value of Array.isArray(values) ? values : [values]) {
-                    const definitionRef = value['DEFINITION']['ATTRIBUTE-DEFINITION-STRING-REF'];
-                    const theValue = value['$']['THE-VALUE'];
-        
-                    switch (definitionRef) {
-                        case '_Requirement_Title':
-                        case '_Test_Title':
-                        case '_TestCase_Title':
-                            label = theValue;
-                            break;
-                        case '_Requirement_Description':
-                        case '_Test_Description':
-                        case '_TestCase_Description':
-                            description = theValue;
-                            break;
-                        case '_Priority':
-                            priority = theValue;
-                            break;
-                        case '_Status':
-                            status = theValue;
-                            break;
-                        case '_Steps':
-                            steps = theValue.split(',');
-                            break;
-                        case '_Prerequisites':
-                            prerequisites = theValue.split(',');
-                            break;
-                        case '_Parameters':
-                            parameters = JSON.parse(theValue || '[]');
-                            break;
+
+                let additionalData = new Map<string, any>();
+
+                if (valuesObj) {
+                    for (const valueTypeKey of Object.keys(valuesObj)) {
+                        const valueEntries = Array.isArray(valuesObj[valueTypeKey]) ? valuesObj[valueTypeKey] : [valuesObj[valueTypeKey]];
+                        for (const value of valueEntries) {
+                            const defKey = value['DEFINITION'] && Object.keys(value['DEFINITION']).find(k => k.startsWith('ATTRIBUTE-DEFINITION-'));
+                            const definitionRef = defKey ? value['DEFINITION'][defKey] : undefined;
+
+                            let theValue = value['$']?.['THE-VALUE'];
+                            if (valueTypeKey === 'ATTRIBUTE-VALUE-XHTML' && value['THE-VALUE']) {
+                                theValue = value['THE-VALUE']['xhtml:div'] || '';
+                            }
+
+                            switch (specTypeNameMap.get(definitionRef) || definitionRef) {
+                                case 'ReqIF.Title':
+                                    label = theValue;
+                                    break;
+                                case 'ReqIF.Description':
+                                    description = theValue;
+                                    break;
+                                case 'ReqIF.Priority':
+                                    priority = theValue;
+                                    break;
+                                case 'ReqIF.Status':
+                                    status = theValue;
+                                    break;
+                                case 'ReqIF.Steps':
+                                    steps = typeof theValue === 'string' ? theValue.split(',') : [];
+                                    break;
+                                case 'ReqIF.Prerequisites':
+                                    prerequisites = typeof theValue === 'string' ? theValue.split(',') : [];
+                                    break;
+                                case 'ReqIF.Parameters':
+                                    parameters = typeof theValue === 'string' ? JSON.parse(theValue || '[]') : [];
+                                    break;
+                                case 'ReqIF.Type':
+                                    break;
+                                default:
+                                    additionalData.set(specTypeNameMap.get(definitionRef) || definitionRef, theValue);
+                            }
+                        }
                     }
                 }
         
                 let node: TreeNode;
-                if (type === '_RequirementType') {
-                    node = new Requirement(id, label, description, priority as 'High' | 'Medium' | 'Low', status as 'Draft' | 'Ready' | 'Reviewed' | 'Approved' | 'Released');
-                } else if (type === '_TestCaseType') {
+                if (!id){
+                    id = getUniqueId();
+                }
+                if (type === 'Requirement Type') {
+                    node = new Requirement(id, label, description, priority as 'High' | 'Medium' | 'Low' , status as 'Draft' | 'Ready' | 'Reviewed' | 'Approved' | 'Released');
+                } else if (type === 'Test Case Type') {
                     node = new TestCase(id, label, description, steps, prerequisites, parameters);
-                } else if (type === '_TestType') {
+                } else if (type === 'Test Type') {
                     node = new TestNode(id, label, description);
                 } else {
-                    continue;
+                    node = new TreeNode(id, "Requirement_" + String(id), 0, type || "Unknown");
                 }
-        
+
+                if (additionalData.size > 0) {
+                    node.otherData = additionalData;
+                }
+                console.log("Node created: ", node);
+                if (!node.label) {
+                    node.label =  specObject['$']['LONG-NAME'] ||  "Requirement_" + String(id);
+                }
                 specObjectsMap.set(id, node);
             }
+
         
             const specHierarchy = parsedReqIF['REQ-IF']['CORE-CONTENT']['REQ-IF-CONTENT']['SPECIFICATIONS']['SPECIFICATION']['CHILDREN']['SPEC-HIERARCHY'];
             const buildHierarchy = (hierarchy: any, parent: TreeNode | null) => {
@@ -361,7 +419,6 @@ export class ReqifFileManager{
                     }
                     nodes.push(node);
                     
-        
                     if (hierarchy['CHILDREN'] && hierarchy['CHILDREN']['SPEC-HIERARCHY']) {
                         const children = Array.isArray(hierarchy['CHILDREN']['SPEC-HIERARCHY'])
                             ? hierarchy['CHILDREN']['SPEC-HIERARCHY']
@@ -377,7 +434,6 @@ export class ReqifFileManager{
             for (const hierarchy of rootHierarchy) {
                 buildHierarchy(hierarchy, null);
             }
-        
             return nodes;
         }
 

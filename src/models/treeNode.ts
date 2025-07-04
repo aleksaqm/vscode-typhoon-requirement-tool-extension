@@ -4,6 +4,7 @@ export class TreeNode extends vscode.TreeItem {
     public children: TreeNode[] = [];
     public parent: TreeNode | null = null;
     public level: string = '';
+    public otherData: any = {};
 
     constructor(
         public id : string,

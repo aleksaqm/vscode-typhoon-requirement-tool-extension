@@ -8,6 +8,7 @@ import { RequirementWebviewProvider } from './requirementWebViewProvider';
 import { TestWebviewProvider } from './testWebViewProvider';
 import { TestCaseWebviewProvider } from './testCaseWebViewProvider';
 import { DetailsViewProvider } from './detailsViewProvider';
+import { UnknownRequirementWebViewProvider } from './unknownRequirementWebViewProvider';
 
 export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode>{
     private _onDidChangeTreeData: vscode.EventEmitter<TreeNode | undefined | void> = new vscode.EventEmitter<TreeNode | undefined | void>();
@@ -195,6 +196,19 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         });
     }
 
+    // async addUnknownRequirement(parent: TreeNode): Promise<void> {
+    //     UnknownRequirementWebViewProvider.show(parent, (requirement: TreeNode) => {
+    //         if (this.selectedNode) {
+    //             this.selectedNode.children.push(requirement);
+    //             requirement.parent = this.selectedNode;
+    //         }
+    //         this.requirements.push(requirement);
+
+    //         this.updateLevels();
+    //         this.refresh();
+    //     });
+    // }
+
     addNode(node: TreeNode) {
         this.requirements.push(node);
         if (node.parent){
@@ -286,6 +300,19 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
             }
             this.refresh();
             this.onNodeSelected(testCaseNode!);
+        });
+    }
+
+    editUnknownRequirement(node: TreeNode): void {
+        UnknownRequirementWebViewProvider.show(node, (node: TreeNode) => {
+            console.log("robija");
+            const req = this.requirements.find(req => req.id === node.id);
+            if (req){
+                req.label = node.label;
+                req.otherData = node.otherData;
+            }
+            this.refresh();
+            this.onNodeSelected(req!);
         });
     }
 

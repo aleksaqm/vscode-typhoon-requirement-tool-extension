@@ -75,6 +75,10 @@ export function activate(context: vscode.ExtensionContext) {
 		requirementDataProvider.editTestCase(node);
 	}));
 
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.editUnknownRequirment', (node: TreeNode) => {
+		requirementDataProvider.editUnknownRequirement(node);
+	}));
+
 	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.deleteNode', (node: TreeNode) => {
 		requirementDataProvider.deleteNode(node);
 	}));
