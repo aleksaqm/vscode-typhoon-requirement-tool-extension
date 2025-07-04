@@ -202,7 +202,7 @@ export function activate(context: vscode.ExtensionContext) {
 			const ignorePath = path.join(outputPath, ignoreName);
 			fs.writeFileSync(ignorePath, "", 'utf-8');
 
-			runTestGeneration(reqifPath, outputPath);
+			await runTestGeneration(reqifPath, outputPath);
 		}catch (err: any){
 			vscode.window.showErrorMessage(`Unexpected error during test generation: ${err.message}`);
 		}
@@ -234,7 +234,7 @@ export function activate(context: vscode.ExtensionContext) {
 			const ignorePath = path.join(outputDir, ignoreName);
 			fs.writeFileSync(ignorePath, "", 'utf-8');
 	
-			runTestGeneration(reqifPath, outputDir);
+			await runTestGeneration(reqifPath, outputDir);
 	
 		} catch (err: any) {
 			vscode.window.showErrorMessage(`Unexpected error during test generation: ${err.message}`);
@@ -306,27 +306,53 @@ export function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {}
 
-
-function runTestGeneration(reqifPath: string, outputPath: string) {
-    const process = spawn('typhoon_testgen', [reqifPath, outputPath]);
-	let output = '';
-	let error = '';
-
-	process.stdout.on('data', (data) => {
-		output += data.toString();
-	});
-	process.stderr.on('data', (data) => {
-		error += data.toString();
-	});
-	process.on('close', (code) => {
-		if (code === 0) {
-			vscode.window.showInformationMessage('Tests generated successfully!');
-		} else {
-			vscode.window.showErrorMessage(`Test generation failed: ${error || output}`);
-		}
-	});
+async function getPythonInterpreterPath(): Promise<string | undefined> {
+    const extension = vscode.extensions.getExtension('ms-python.python');
+    if (!extension) {return undefined;}
+    if (!extension.isActive) {
+        await extension.activate();
+    }
+    // @ts-ignore
+    const pythonPath = extension.exports.settings.getExecutionDetails().execCommand[0];
+    return pythonPath;
 }
 
+async function runTestGeneration(reqifPath: string, outputPath: string) {
+    const pythonPath = await getPythonInterpreterPath();
+    if (!pythonPath) {
+        vscode.window.showErrorMessage('Could not determine Python interpreter path.');
+        return;
+    }
+
+    let venvBinDir: string | undefined = undefined;
+    if (pythonPath) {
+        const venvDir = path.dirname(path.dirname(pythonPath));
+        venvBinDir = path.join(venvDir, os.platform() === 'win32' ? 'Scripts' : 'bin');
+    }
+
+    const env = { ...process.env };
+    if (venvBinDir) {
+        env.PATH = venvBinDir + path.delimiter + env.PATH;
+    }
+
+    const processSpawn = spawn('typhoon_testgen', [reqifPath, outputPath], { env });
+    let output = '';
+    let error = '';
+
+    processSpawn.stdout.on('data', (data) => {
+        output += data.toString();
+    });
+    processSpawn.stderr.on('data', (data) => {
+        error += data.toString();
+    });
+    processSpawn.on('close', (code) => {
+        if (code === 0) {
+            vscode.window.showInformationMessage('Tests generated successfully!');
+        } else {
+            vscode.window.showErrorMessage(`Test generation failed: ${error || output}`);
+        }
+    });
+}
 
 
 
