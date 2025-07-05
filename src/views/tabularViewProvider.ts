@@ -465,6 +465,7 @@ export class TabularViewProvider {
                     <button id="addTestCase">Add Test Case</button>
                     <button id="deleteRow">Delete Row</button>
                     <button id="removeIcons">Remove Errors/Warnings</button>
+                    <button id="expandCollapseAll">Expand All</button>
                 </div>
                 <table>
                     <thead>
@@ -537,15 +538,6 @@ export class TabularViewProvider {
                         // Prepare otherData values
                         let otherData = node.otherData || {};
                         let otherDataTypes = node.otherDataTypes || {};
-                        console.log(otherData);
-                        // if (otherData && typeof otherData === 'object' && otherData.entries && typeof otherData.entries === 'function') {
-                        //     // Map
-                        //     otherData = Object.fromEntries(Array.from(otherData.entries()));
-                        //     console.log("OTher data is map");
-                        //     console.log(otherData);
-                        // }
-                        console.log("AAAAAAAALLLLLLLLLEEEEEEEEEEEEEEE");
-                        console.log(otherData);
                         return \`
                             <tr data-id="\${node.id}" data-parent-id="\${parentId}" class="\${parentId ? 'hidden' : ''} \${rowClass}">
                                 <td>
@@ -567,7 +559,14 @@ export class TabularViewProvider {
                     }
     
                     function renderRows(nodes, parentId = null) {
-                        return nodes.map(node => renderRow(node, parentId)).join('');
+                        return nodes.map(node => {
+                            const rowHtml = renderRow(node, parentId);
+                            // Recursively render children, always hidden at first
+                            const childrenHtml = node.children && node.children.length > 0
+                                ? renderRows(node.children, node.id)
+                                : '';
+                            return rowHtml + childrenHtml;
+                        }).join('');
                     }
     
                     function loadChildren(nodeId, children) {
@@ -1254,6 +1253,35 @@ export class TabularViewProvider {
 
                         modal.classList.remove('hidden'); // Show the modal
                     }
+
+                    let allExpanded = false;
+                    document.getElementById('expandCollapseAll').addEventListener('click', () => {
+                        allExpanded = !allExpanded;
+                        const button = document.getElementById('expandCollapseAll');
+                        button.textContent = allExpanded ? 'Collapse All' : 'Expand All';
+
+                        document.querySelectorAll('tr[data-parent-id]').forEach(row => {
+                            // Hide only if not a root row (parent-id is not null/undefined/empty string)
+                            const parentId = row.getAttribute('data-parent-id');
+                            if (allExpanded) {
+                                row.classList.remove('hidden');
+                            } else if (parentId && parentId !== 'null' && parentId !== '') {
+                                row.classList.add('hidden');
+                            } else {
+                                row.classList.remove('hidden');
+                            }
+                        });
+
+                        // Update expand/collapse icons
+                        document.querySelectorAll('.expandable').forEach(expander => {
+                            const row = expander.closest('tr');
+                            const nodeId = row.getAttribute('data-id');
+                            const node = findNodeById(tree, nodeId);
+                            const level = node && node.level ? node.level : '';
+                            expander.textContent = allExpanded ? \`[-] \${level}\` : \`[+] \${level}\`;
+                            expander.setAttribute('data-loaded', allExpanded ? 'true' : 'false');
+                        });
+                    });
                 </script>
             </body>
             </html>
