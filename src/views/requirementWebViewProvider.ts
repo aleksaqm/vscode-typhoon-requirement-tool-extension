@@ -134,6 +134,10 @@ export class RequirementWebviewProvider {
                 <script>
                     const vscode = acquireVsCodeApi();
                     let otherData = ${JSON.stringify(Object.fromEntries(otherData))};
+                    let otherDataTypes = {};
+                    Object.entries(otherData).forEach(([key, value]) => {
+                        otherDataTypes[key] = typeof value;
+                    });
 
                     function updateOtherDataList() {
                         const list = document.getElementById('otherDataList');
@@ -151,13 +155,45 @@ export class RequirementWebviewProvider {
 
                     document.getElementById('addOtherButton').addEventListener('click', () => {
                         const key = document.getElementById('otherKey').value.trim();
-                        const value = document.getElementById('otherValue').value.trim();
-                        if (key && value) {
-                            otherData[key] = value;
-                            document.getElementById('otherKey').value = '';
-                            document.getElementById('otherValue').value = '';
-                            updateOtherDataList();
+                        let value = document.getElementById('otherValue').value.trim();
+
+                        if (!key) return;
+
+                        // If key already exists, check type
+                        if (otherData.hasOwnProperty(key)) {
+                            const expectedType = otherDataTypes[key];
+                            let newType = typeof value;
+
+                            // Try to parse as number or boolean if original was such
+                            if (expectedType === 'number' && !isNaN(Number(value))) {
+                                value = Number(value);
+                                newType = 'number';
+                            } else if (expectedType === 'boolean' && (value === 'true' || value === 'false')) {
+                                value = value === 'true';
+                                newType = 'boolean';
+                            }
+
+                            if (newType !== expectedType) {
+                                alert('Type mismatch! Value for "' + key + '" must be of type ' + expectedType + '.');
+                                return;
+                            }
+                        } else {
+                            // If new key, record its type
+                            if (!isNaN(Number(value))) {
+                                value = Number(value);
+                                otherDataTypes[key] = 'number';
+                            } else if (value === 'true' || value === 'false') {
+                                value = value === 'true';
+                                otherDataTypes[key] = 'boolean';
+                            } else {
+                                otherDataTypes[key] = 'string';
+                            }
                         }
+
+                        otherData[key] = value;
+                        document.getElementById('otherKey').value = '';
+                        document.getElementById('otherValue').value = '';
+                        updateOtherDataList();
                     });
 
                     document.getElementById('submitButton').addEventListener('click', () => {

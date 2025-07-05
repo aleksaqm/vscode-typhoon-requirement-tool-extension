@@ -9,6 +9,27 @@ import { getUniqueId } from "./idGenerator";
 export class ReqifFileManager{
     public static exportToReqIF(nodes: TreeNode[], projectId: string): string {
             const now = new Date().toISOString();
+
+            const otherDataDefs: Record<string, {type: string, example: any}> = {};
+            for (const node of this.flattenTree(nodes.filter(n => !n.parent))) {
+                if (node instanceof Requirement && node.otherData) {
+                    let otherDataObj = node.otherData instanceof Map ? Object.fromEntries(node.otherData.entries()) : node.otherData;
+                    for (const [key, value] of Object.entries(otherDataObj)) {
+                        if (!otherDataDefs[key]) {
+                            let type = typeof value;
+                            let customType: string;
+                            if (type === 'number') {
+                                customType = Number.isInteger(value) ? 'integer' : 'real';
+                            } else if (type === 'boolean') {
+                                customType = 'boolean';
+                            } else {
+                                customType = 'string';
+                            }
+                            otherDataDefs[key] = {type: customType, example: value};
+                        }
+                    }
+                }
+            }
         
             const root = xmlbuilder.create('REQ-IF', { version: '1.0', encoding: 'UTF-8' })
                 .att('xmlns', 'http://www.omg.org/spec/ReqIF/20110401/reqif.xsd')
@@ -43,6 +64,32 @@ export class ReqifFileManager{
                 'LAST-CHANGE': now,
                 'LONG-NAME': 'XHTML',
             });
+
+            // --- ADDED FOR OTHERDATA: Add integer, real, boolean datatypes if needed ---
+            if (Object.values(otherDataDefs).some(def => def.type === 'integer')) {
+                datatypes.ele('DATATYPE-DEFINITION-INTEGER', {
+                    IDENTIFIER: '_IntegerType',
+                    'LAST-CHANGE': now,
+                    'LONG-NAME': 'Integer',
+                    'MIN': '-2147483648',
+                    'MAX': '2147483647'
+                });
+            }
+            if (Object.values(otherDataDefs).some(def => def.type === 'real')) {
+                datatypes.ele('DATATYPE-DEFINITION-REAL', {
+                    IDENTIFIER: '_RealType',
+                    'LAST-CHANGE': now,
+                    'LONG-NAME': 'Real',
+                    'ACCURACY': '7'
+                });
+            }
+            if (Object.values(otherDataDefs).some(def => def.type === 'boolean')) {
+                datatypes.ele('DATATYPE-DEFINITION-BOOLEAN', {
+                    IDENTIFIER: '_BooleanType',
+                    'LAST-CHANGE': now,
+                    'LONG-NAME': 'Boolean'
+                });
+            }
         
             const specTypes = coreContent.ele('SPEC-TYPES');
             const specObjectRequirementType = specTypes.ele('SPEC-OBJECT-TYPE', {
@@ -153,6 +200,27 @@ export class ReqifFileManager{
                 'LAST-CHANGE': now,
                 'LONG-NAME': 'ReqIF.Description',
             }).ele('TYPE').ele('DATATYPE-DEFINITION-XHTML-REF', '_XhtmlType');
+
+            // --- ADDED FOR OTHERDATA: Add attribute definitions for otherData ---
+            for (const [key, def] of Object.entries(otherDataDefs)) {
+                let attrType = 'STRING';
+                let typeRef = '_StringType';
+                if (def.type === 'integer') {
+                    attrType = 'INTEGER';
+                    typeRef = '_IntegerType';
+                } else if (def.type === 'real') {
+                    attrType = 'REAL';
+                    typeRef = '_RealType';
+                } else if (def.type === 'boolean') {
+                    attrType = 'BOOLEAN';
+                    typeRef = '_BooleanType';
+                }
+                specReqtributes.ele(`ATTRIBUTE-DEFINITION-${attrType}`, {
+                    IDENTIFIER: `_Requirement_OtherData_${key}`,
+                    'LAST-CHANGE': now,
+                    'LONG-NAME': key,
+                }).ele('TYPE').ele(`DATATYPE-DEFINITION-${attrType}-REF`, typeRef);
+            }
         
             const specObjects = coreContent.ele('SPEC-OBJECTS');
             const rootNodes = nodes.filter(node => !node.parent);
@@ -179,6 +247,34 @@ export class ReqifFileManager{
                     values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node instanceof Requirement ? node.status || '' : '' })
                         .ele('DEFINITION')
                         .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_Status');
+
+                    let otherDataObj = node.otherData instanceof Map ? Object.fromEntries(node.otherData.entries()) : node.otherData;
+                    if (otherDataObj) {
+                        for (const [key, value] of Object.entries(otherDataObj)) {
+                            const def = otherDataDefs[key];
+                            if (!def) {continue;}
+                            let valueTypeTag = '';
+                            let defTag = '';
+                            let theValue = value;
+                            if (def.type === 'integer') {
+                                valueTypeTag = 'ATTRIBUTE-VALUE-INTEGER';
+                                defTag = 'ATTRIBUTE-DEFINITION-INTEGER-REF';
+                            } else if (def.type === 'real') {
+                                valueTypeTag = 'ATTRIBUTE-VALUE-REAL';
+                                defTag = 'ATTRIBUTE-DEFINITION-REAL-REF';
+                            } else if (def.type === 'boolean') {
+                                valueTypeTag = 'ATTRIBUTE-VALUE-BOOLEAN';
+                                defTag = 'ATTRIBUTE-DEFINITION-BOOLEAN-REF';
+                                theValue = value ? 'true' : 'false';
+                            } else {
+                                valueTypeTag = 'ATTRIBUTE-VALUE-STRING';
+                                defTag = 'ATTRIBUTE-DEFINITION-STRING-REF';
+                            }
+                            values.ele(valueTypeTag, { 'THE-VALUE': theValue })
+                                .ele('DEFINITION')
+                                .ele(defTag, `_Requirement_OtherData_${key}`);
+                        }
+                    }
 
                     specObject.ele('TYPE').ele('SPEC-OBJECT-TYPE-REF', '_RequirementType');
                     
@@ -254,6 +350,8 @@ export class ReqifFileManager{
         
             return root.end({ pretty: true });
         }
+
+        
     
         private static serializeSpecificationHierarchy(nodes: TreeNode[], parentXml: xmlbuilder.XMLElement): void {
             for (const node of nodes) {
@@ -350,33 +448,53 @@ export class ReqifFileManager{
                             if (valueTypeKey === 'ATTRIBUTE-VALUE-XHTML' && value['THE-VALUE']) {
                                 theValue = value['THE-VALUE']['xhtml:div'] || '';
                             }
+                            let parsedValue = theValue;
+                            switch (valueTypeKey) {
+                                case 'ATTRIBUTE-VALUE-STRING':
+                                case 'ATTRIBUTE-VALUE-XHTML':
+                                    // Already string
+                                    break;
+                                case 'ATTRIBUTE-VALUE-INTEGER':
+                                    parsedValue = theValue !== undefined ? parseInt(theValue, 10) : undefined;
+                                    break;
+                                case 'ATTRIBUTE-VALUE-REAL':
+                                    parsedValue = theValue !== undefined ? parseFloat(theValue) : undefined;
+                                    break;
+                                case 'ATTRIBUTE-VALUE-BOOLEAN':
+                                    parsedValue = theValue === 'true' || theValue === true;
+                                    break;
+                                case 'ATTRIBUTE-VALUE-DATE':
+                                    // Optionally parse as Date
+                                    parsedValue = new Date(theValue);
+                                    break;
+                            }
 
                             switch (specTypeNameMap.get(definitionRef) || definitionRef) {
                                 case 'ReqIF.Title':
-                                    label = theValue;
+                                    label = parsedValue;
                                     break;
                                 case 'ReqIF.Description':
-                                    description = theValue;
+                                    description = parsedValue;
                                     break;
                                 case 'ReqIF.Priority':
-                                    priority = theValue;
+                                    priority = parsedValue;
                                     break;
                                 case 'ReqIF.Status':
-                                    status = theValue;
+                                    status = parsedValue;
                                     break;
                                 case 'ReqIF.Steps':
-                                    steps = typeof theValue === 'string' ? theValue.split(',') : [];
+                                    steps = typeof parsedValue === 'string' ? parsedValue.split(',') : [];
                                     break;
                                 case 'ReqIF.Prerequisites':
-                                    prerequisites = typeof theValue === 'string' ? theValue.split(',') : [];
+                                    prerequisites = typeof parsedValue === 'string' ? parsedValue.split(',') : [];
                                     break;
                                 case 'ReqIF.Parameters':
-                                    parameters = typeof theValue === 'string' ? JSON.parse(theValue || '[]') : [];
+                                    parameters = typeof parsedValue === 'string' ? JSON.parse(parsedValue || '[]') : [];
                                     break;
                                 case 'ReqIF.Type':
                                     break;
                                 default:
-                                    additionalData.set(specTypeNameMap.get(definitionRef) || definitionRef, theValue);
+                                    additionalData.set(specTypeNameMap.get(definitionRef) || definitionRef, parsedValue);
                             }
                         }
                     }
