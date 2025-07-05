@@ -6,7 +6,7 @@ export class RequirementWebviewProvider {
     static show(node: Requirement | undefined, onSubmit: (requirement: Requirement) => void): void {
         const panel = vscode.window.createWebviewPanel(
             'addRequirement',
-            'Add Requirement',
+            node ? 'Edit Requirement' : 'Add Requirement',
             vscode.ViewColumn.One,
             { enableScripts: true }
         );
@@ -14,17 +14,18 @@ export class RequirementWebviewProvider {
 
         panel.webview.onDidReceiveMessage((message) => {
             if (message.command === 'submit') {
-                const { name, description, priority, status } = message.data;
+                const { name, description, priority, status, otherData } = message.data;
                 if (name && description && priority && status) {
-                    if (node){
-                        const id = node.id!;
-                        onSubmit(new Requirement(id, name, description, priority, status));
-                        panel.dispose();
-                    }else{
-                        const newRequirement = new Requirement(getUniqueId(), name, description, priority, status);
-                        onSubmit(newRequirement);
-                        panel.dispose();
+                    let req: Requirement;
+                    if (node) {
+                        req = new Requirement(node.id!, name, description, priority, status);
+                        req.otherData = new Map(Object.entries(otherData)); // <-- Convert to Map
+                    } else {
+                        req = new Requirement(getUniqueId(), name, description, priority, status);
+                        req.otherData = new Map(Object.entries(otherData)); // <-- Convert to Map
                     }
+                    onSubmit(req);
+                    panel.dispose();
                 } else {
                     vscode.window.showErrorMessage('Please fill in all fields.');
                 }
@@ -37,6 +38,7 @@ export class RequirementWebviewProvider {
         const description = node && node.description ? node.description : '';
         const priority = node ? node.priority : 'Medium';
         const status = node ? node.status : 'Draft';
+        const otherData = node && node.otherData ? (node.otherData instanceof Map ? Array.from(node.otherData.entries()) : Object.entries(node.otherData)) : [];
 
         return `
             <!DOCTYPE html>
@@ -62,23 +64,46 @@ export class RequirementWebviewProvider {
                     vscode-button {
                         align-self: flex-start;
                     }
+                    .other-section {
+                        margin-top: 18px;
+                        padding-top: 8px;
+                        border-top: 1px solid var(--vscode-panel-border, #333);
+                    }
+                    ul {
+                        list-style-type: none;
+                        padding: 0;
+                    }
+                    li {
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        margin-bottom: 4px;
+                    }
+                    .remove-button {
+                        background: #d32f2f;
+                        color: #fff;
+                        border: none;
+                        border-radius: 3px;
+                        cursor: pointer;
+                        padding: 2px 8px;
+                    }
+                    .remove-button:hover {
+                        background: #b71c1c;
+                    }
                 </style>
             </head>
             <body>
                 <h2>${node ? 'Edit Requirement' : 'Add Requirement'}</h2>
                 <form id="requirementForm">
                     <vscode-text-field id="name" value="${name}" required>Requirement Name</vscode-text-field>
-
                     <vscode-text-area id="description" value="${description}" rows="4" resize="vertical" required>
                         Requirement Description
                     </vscode-text-area>
-
                     <vscode-dropdown id="priority">
                         <vscode-option value="High" ${priority === 'High' ? 'selected' : ''}>High</vscode-option>
                         <vscode-option value="Medium" ${priority === 'Medium' ? 'selected' : ''}>Medium</vscode-option>
                         <vscode-option value="Low" ${priority === 'Low' ? 'selected' : ''}>Low</vscode-option>
                     </vscode-dropdown>
-
                     <vscode-dropdown id="status">
                         <vscode-option value="Draft" ${status === 'Draft' ? 'selected' : ''}>Draft</vscode-option>
                         <vscode-option value="Ready" ${status === 'Ready' ? 'selected' : ''}>Ready</vscode-option>
@@ -86,25 +111,68 @@ export class RequirementWebviewProvider {
                         <vscode-option value="Approved" ${status === 'Approved' ? 'selected' : ''}>Approved</vscode-option>
                         <vscode-option value="Released" ${status === 'Released' ? 'selected' : ''}>Released</vscode-option>
                     </vscode-dropdown>
-
+                    <div class="other-section">
+                        <h4>Other Data</h4>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <vscode-text-field id="otherKey" placeholder="Key"></vscode-text-field>
+                            <vscode-text-field id="otherValue" placeholder="Value"></vscode-text-field>
+                            <vscode-button id="addOtherButton" type="button">Add</vscode-button>
+                        </div>
+                        <ul id="otherDataList">
+                            ${otherData.map(([key, value]) => `
+                                <li>
+                                    <span><b>${key}</b>: ${value}</span>
+                                    <button class="remove-button" data-key="${key}">Remove</button>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
                     <vscode-button id="submitButton" type="button" appearance="primary">
                         ${node ? 'Save Changes' : 'Submit'}
                     </vscode-button>
                 </form>
-
                 <script>
                     const vscode = acquireVsCodeApi();
+                    let otherData = ${JSON.stringify(Object.fromEntries(otherData))};
+
+                    function updateOtherDataList() {
+                        const list = document.getElementById('otherDataList');
+                        list.innerHTML = '';
+                        Object.entries(otherData).forEach(([key, value]) => {
+                            const li = document.createElement('li');
+                            li.innerHTML = '<span><b>' + key + '</b>: ' + value + '</span> <button class="remove-button" data-key="' + key + '">Remove</button>';
+                            li.querySelector('.remove-button').addEventListener('click', () => {
+                                delete otherData[key];
+                                updateOtherDataList();
+                            });
+                            list.appendChild(li);
+                        });
+                    }
+
+                    document.getElementById('addOtherButton').addEventListener('click', () => {
+                        const key = document.getElementById('otherKey').value.trim();
+                        const value = document.getElementById('otherValue').value.trim();
+                        if (key && value) {
+                            otherData[key] = value;
+                            document.getElementById('otherKey').value = '';
+                            document.getElementById('otherValue').value = '';
+                            updateOtherDataList();
+                        }
+                    });
+
                     document.getElementById('submitButton').addEventListener('click', () => {
                         const name = document.getElementById('name').value.trim();
                         const description = document.getElementById('description').value.trim();
                         const priority = document.getElementById('priority').value;
                         const status = document.getElementById('status').value;
-
                         vscode.postMessage({
                             command: 'submit',
-                            data: { name, description, priority, status }
+                            data: { name, description, priority, status, otherData }
                         });
                     });
+
+                    // Initialize list if editing
+                    updateOtherDataList();
                 </script>
             </body>
             </html>

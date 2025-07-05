@@ -267,6 +267,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
                 req.description = requirement.description;
                 req.priority = requirement.priority;
                 req.status = requirement.status;
+                req.otherData = requirement.otherData;
             }
             this.refresh();
             this.onNodeSelected(req!);

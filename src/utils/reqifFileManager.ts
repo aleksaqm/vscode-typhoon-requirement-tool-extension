@@ -393,7 +393,8 @@ export class ReqifFileManager{
                 } else if (type === 'Test Type') {
                     node = new TestNode(id, label, description);
                 } else {
-                    node = new TreeNode(id, "Requirement_" + String(id), 0, type || "Unknown");
+                    node = new Requirement(id, "Requirement_" + String(id), "no description", "Medium", "Draft");
+                    // node = new TreeNode(id, "Requirement_" + String(id), 0, type || "Unknown");
                 }
 
                 if (additionalData.size > 0) {
