@@ -129,7 +129,11 @@ export function activate(context: vscode.ExtensionContext) {
 			const reqifContent = fileContent.toString();
 			const nodes = await ReqifFileManager.importFromReqIF(reqifContent);
 			requirementDataProvider.updateTree(nodes);
-			vscode.window.showInformationMessage(`Requirements imported from ${openUri[0].fsPath}`);
+			if (nodes.length === 0){
+				vscode.window.showErrorMessage('No valid requirements found in the ReqIF file.');
+			}else{
+				vscode.window.showInformationMessage(`Requirements imported from ${openUri[0].fsPath}`);
+			}
 		}catch (error : any) {
 			vscode.window.showErrorMessage('Error importing requirements from ReqIF: ' + error.message);
 		}

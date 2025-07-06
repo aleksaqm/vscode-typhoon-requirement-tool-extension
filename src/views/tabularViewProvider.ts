@@ -535,6 +535,13 @@ export class TabularViewProvider {
                     function renderRow(node, parentId = null) {
                         let rowClass = '';
                         // ...existing rowClass logic...
+                        if (node.iconPath && typeof node.iconPath === 'object') {
+                            if (node.iconPath.id === 'diff-removed') {
+                                rowClass = 'error-row';
+                            } else if (node.iconPath.id === 'diff-modified') {
+                                rowClass = 'warning-row';
+                            }
+                        }
                         const hasChildren = node.children && node.children.length > 0;
                         const level = node.level || '';
                         // Prepare otherData values
