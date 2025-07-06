@@ -85,6 +85,8 @@ export class TabularViewProvider {
                 TabularViewProvider.panel!.webview.html = TabularViewProvider.getHtml([], false);
             }else if (message.command === 'updateOtherData') {
                 this.updateOtherData(message.data.id, message.data.key, message.data.value);
+            }else if (message.command === 'error'){
+                vscode.window.showErrorMessage(message.data.message);
             }
         });
     }
@@ -787,6 +789,12 @@ export class TabularViewProvider {
 
                         if (!newNode.label) {
                             alert('Name is required.');
+                            vscode.postMessage({
+                                command: 'error',
+                                data: {
+                                    message: "Name is required.",
+                                },
+                            });
                             return;
                         }
 
@@ -980,10 +988,22 @@ export class TabularViewProvider {
                     function saveEdit(rowId, field, newValue, cell) {
                         if (field === 'priority' && !['High', 'Medium', 'Low'].includes(newValue)) {
                             alert('Invalid priority value!');
+                            vscode.postMessage({
+                                command: 'error',
+                                data: {
+                                    message: "Invalid priority value.",
+                                },
+                            });
                             return;
                         }
                         if (field === 'status' && !['Draft', 'Ready', 'Reviewed', 'Approved', 'Released'].includes(newValue)) {
                             alert('Invalid status value!');
+                            vscode.postMessage({
+                                command: 'error',
+                                data: {
+                                    message: "Invalid status value.",
+                                },
+                            });
                             return;
                         }
 
@@ -1142,6 +1162,12 @@ export class TabularViewProvider {
                             }));
                             for (const param of updatedParameters) {
                                 if (isValidType(param.type, param.value) === false) {
+                                    vscode.postMessage({
+                                        command: 'error',
+                                        data: {
+                                            message: "Invalid parameter type or value for '" + param.name + "'. Expected type: " + param.type + ".",
+                                        },
+                                    });
                                     return; //message
                                 }
                             }
