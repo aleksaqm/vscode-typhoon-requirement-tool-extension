@@ -397,9 +397,7 @@ export class ReqifFileManager{
                     const identifier = specObjectType['$']['IDENTIFIER'];
                     const longName = specObjectType['$']['LONG-NAME'];
                     if (identifier && longName) {
-                        console.log("DODAJEM U MAPU ", identifier, longName);
                         specTypeNameMap.set(identifier, longName);
-                        console.log("specTypeNameMap.get(identifier): ", specTypeNameMap.get(identifier));
                     }
                     const specAttributes = specObjectType['SPEC-ATTRIBUTES'];
                     if (specAttributes) {
@@ -518,7 +516,6 @@ export class ReqifFileManager{
                 if (additionalData.size > 0) {
                     node.otherData = additionalData;
                 }
-                console.log("Node created: ", node);
                 if (!node.label) {
                     node.label =  specObject['$']['LONG-NAME'] ||  "Requirement_" + String(id);
                 }

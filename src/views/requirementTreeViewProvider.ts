@@ -368,7 +368,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         let forLooking = this.getRootNodes();
         let nodeForDelete = null;
         for (var i = 0; i< nodeNames.length; i+=1){
-            const node = forLooking.find((node) => node.label.replace(" ", "_").toLowerCase() === nodeNames[i]);
+            const node = forLooking.find((node) => node.label.replace(/[\s-]/g, "_").toLowerCase() === nodeNames[i].replace("-", "_"));
             if (!node){
                 vscode.window.showErrorMessage("Requirement doesn't exist");
                 break;
