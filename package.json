@@ -299,7 +299,7 @@
     "viewsWelcome": [
       {
         "view": "typhoon-requirement-tool.tree",
-        "contents": "Welcome to the Typhoon Requirement Tool! \n No requirements found.\n[Add Requirement](command:typhoon-requirement-tool.addRequirement)\nOR import requirements from ReqIF or CSV files\n[Import from ReqIF](command:typhoon-requirement-tool.importFromReqIF)\n[Import from CSV](command:typhoon-requirement-tool.importFromCSV)\n\nFor more information, visit the [GitHub repository](https://github.com/aleksaqm/vscode-typhoon-requirement-tool-extension)."
+        "contents": "Welcome to the Typhoon Requirement Tool! \n No requirements found.\n[Add Requirement](command:typhoon-requirement-tool.addRequirement)\nOR import requirements from ReqIF or CSV files\n[Import from ReqIF file](command:typhoon-requirement-tool.importFromReqIF)\n[Import from CSV file](command:typhoon-requirement-tool.importFromCSV)\n\nFor more information, visit the [GitHub repository](https://github.com/aleksaqm/vscode-typhoon-requirement-tool-extension)."
       }
     ]
   },
