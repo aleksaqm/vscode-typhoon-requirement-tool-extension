@@ -5,6 +5,8 @@ import { TreeNode } from "../models/treeNode";
 import * as xml2js from "xml2js";
 import { TestNode } from "../models/test";
 import { getUniqueId } from "./idGenerator";
+import * as vscode from 'vscode';
+
 
 export class ReqifFileManager{
     public static exportToReqIF(nodes: TreeNode[], projectId: string): string {
@@ -382,6 +384,7 @@ export class ReqifFileManager{
         public static async importFromReqIF(reqifContent: string): Promise<TreeNode[]> {
             const parser = new xml2js.Parser({ explicitArray: false });
             const parsedReqIF = await parser.parseStringPromise(reqifContent);
+            let allParametersLoaded = true;
         
             const specObjectsMap = new Map<string, TreeNode>();
             const nodes: TreeNode[] = [];
@@ -450,7 +453,6 @@ export class ReqifFileManager{
                             switch (valueTypeKey) {
                                 case 'ATTRIBUTE-VALUE-STRING':
                                 case 'ATTRIBUTE-VALUE-XHTML':
-                                    // Already string
                                     break;
                                 case 'ATTRIBUTE-VALUE-INTEGER':
                                     parsedValue = theValue !== undefined ? parseInt(theValue, 10) : undefined;
@@ -462,9 +464,12 @@ export class ReqifFileManager{
                                     parsedValue = theValue === 'true' || theValue === true;
                                     break;
                                 case 'ATTRIBUTE-VALUE-DATE':
-                                    // Optionally parse as Date
                                     parsedValue = new Date(theValue);
                                     break;
+                            }
+                            if (!parsedValue){
+                                console.log("Unable to parse value");
+                                allParametersLoaded = false;
                             }
 
                             switch (specTypeNameMap.get(definitionRef) || definitionRef) {
@@ -550,6 +555,10 @@ export class ReqifFileManager{
             for (const hierarchy of rootHierarchy) {
                 buildHierarchy(hierarchy, null);
             }
+            if (!allParametersLoaded) {
+                vscode.window.showWarningMessage("Requirement file loaded in degraded state");
+            }
+
             return nodes;
         }
 
