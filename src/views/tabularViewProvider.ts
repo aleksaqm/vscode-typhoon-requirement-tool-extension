@@ -83,6 +83,10 @@ export class TabularViewProvider {
                 this.allNodes.forEach(clearIcons);
                 TabularViewProvider.panel?.webview.postMessage({ command: 'iconsRemoved' });
                 TabularViewProvider.panel!.webview.html = TabularViewProvider.getHtml([], false);
+            }else if (message.command === 'updateOtherData') {
+                this.updateOtherData(message.data.id, message.data.key, message.data.value);
+            }else if (message.command === 'error'){
+                vscode.window.showErrorMessage(message.data.message);
             }
         });
     }
@@ -127,13 +131,26 @@ export class TabularViewProvider {
     }
 
     private static serializeTree(nodes: TreeNode[]): any[] {
-        return nodes.map(node => {
+        function serializeNode(node: TreeNode): any {
+            let otherDataObj = node.otherData;
+            let otherDataTypes: Record<string, string> = {};
+            if (otherDataObj instanceof Map) {
+                otherDataObj = Object.fromEntries(otherDataObj.entries());
+            }
+            if (otherDataObj && typeof otherDataObj === 'object') {
+                for (const [k, v] of Object.entries(otherDataObj)) {
+                    otherDataTypes[k] = typeof v;
+                }
+            }
             const { parent, ...rest } = node;
             return {
                 ...rest,
-                children: node.children ? TabularViewProvider.serializeTree(node.children) : [],
+                otherData: otherDataObj,
+                otherDataTypes,
+                children: node.children ? node.children.map(serializeNode) : [],
             };
-        });
+        }
+        return nodes.map(serializeNode);
     }
 
     private static async deleteNode(id: string): Promise<void> {
@@ -216,9 +233,40 @@ export class TabularViewProvider {
         }
     }
 
+    private static getAllOtherDataKeys(nodes: any[]): string[] {
+        const keys = new Set<string>();
+        function collect(node: any) {
+            if (node.contextValue === 'requirement' && node.otherData) {
+                const entries = node.otherData instanceof Map
+                    ? Array.from(node.otherData.keys())
+                    : Object.keys(node.otherData);
+                entries.forEach(k => keys.add(String(k)));
+            }
+            if (node.children) {node.children.forEach(collect);}
+        }
+        nodes.forEach(collect);
+        return Array.from(keys);
+    }
+
+    private static updateOtherData(id: string, key: string, value: string): void {
+        const node = this.requirementDataProvider 
+            ? this.findNodeById(this.requirementDataProvider.getAllNodes(), id) 
+            : null;
+        if (node && node.contextValue === 'requirement') {
+            if (!node.otherData) {node.otherData = {};}
+            if (node.otherData instanceof Map) {
+                node.otherData.set(key, value);
+            } else {
+                node.otherData[key] = value;
+            }
+            this.requirementDataProvider?.refresh();
+        }
+    }
+
     private static getHtml(expandedNodeIds: string[] = [], coverageActive: boolean): string {
         const treeJson = JSON.stringify(this.allNodes);
         const expandedIdsJson = JSON.stringify(expandedNodeIds);
+        const otherDataKeys = TabularViewProvider.getAllOtherDataKeys(this.allNodes);
         return `
             <!DOCTYPE html>
             <html lang="en">
@@ -419,6 +467,7 @@ export class TabularViewProvider {
                     <button id="addTestCase">Add Test Case</button>
                     <button id="deleteRow">Delete Row</button>
                     <button id="removeIcons">Remove Errors/Warnings</button>
+                    <button id="expandCollapseAll">Expand All</button>
                 </div>
                 <table>
                     <thead>
@@ -432,6 +481,7 @@ export class TabularViewProvider {
                             <th>Steps</th>
                             <th>Prerequisites</th>
                             <th>Parameters</th>
+                            ${otherDataKeys.map(key => `<th data-other-key="${key}">${key}</th>`).join('')}
                         </tr>
                     </thead>
                     <tbody id="requirementsTable">
@@ -480,17 +530,23 @@ export class TabularViewProvider {
                     const vscode = acquireVsCodeApi();
                     let coverageActive = ${coverageActive};
 
+                    const otherDataKeys = ${JSON.stringify(otherDataKeys)};
+
                     function renderRow(node, parentId = null) {
                         let rowClass = '';
-                        if (node.iconPath && (typeof node.iconPath === 'object')){
-                            if (node.iconPath.id === 'diff-modified' || node.iconPath.id === 'debug-step-over') {
-                                rowClass = 'warning-row';
-                            }else if (node.iconPath.id === 'diff-removed') {
+                        // ...existing rowClass logic...
+                        if (node.iconPath && typeof node.iconPath === 'object') {
+                            if (node.iconPath.id === 'diff-removed') {
                                 rowClass = 'error-row';
+                            } else if (node.iconPath.id === 'diff-modified') {
+                                rowClass = 'warning-row';
                             }
                         }
                         const hasChildren = node.children && node.children.length > 0;
                         const level = node.level || '';
+                        // Prepare otherData values
+                        let otherData = node.otherData || {};
+                        let otherDataTypes = node.otherDataTypes || {};
                         return \`
                             <tr data-id="\${node.id}" data-parent-id="\${parentId}" class="\${parentId ? 'hidden' : ''} \${rowClass}">
                                 <td>
@@ -498,24 +554,28 @@ export class TabularViewProvider {
                                         ? \`<span class="expandable" data-loaded="false">[+] \${level}</span>\` 
                                         : \`<span data-loaded="false">\${level}</span>\`}
                                 </td>
-                                <td>
-                                    \${node.label || ''}
-                                </td>
+                                <td>\${node.label || ''}</td>
                                 <td>\${node.description || ''}</td>
                                 <td>\${node.contextValue || ''}</td>
                                 <td>\${node.priority || ''}</td>
                                 <td>\${node.status || ''}</td>
                                 <td>\${node.contextValue === 'testCase' ? '<button class="manage-array" data-field="steps">Manage</button>' : ''}</td>
                                 <td>\${node.contextValue === 'testCase' ? '<button class="manage-array" data-field="prerequisites">Manage</button>' : ''}</td>
-                                <td>
-                                    \${node.contextValue === 'testCase' ? '<button class="manage-parameters">Manage</button>' : ''}
-                                </td>
+                                <td>\${node.contextValue === 'testCase' ? '<button class="manage-parameters">Manage</button>' : ''}</td>
+                                \${otherDataKeys.map(key => \`<td class="other-data-cell" data-other-key="\${key}">\${otherData && otherData[key] !== undefined ? otherData[key] : ''}</td>\`).join('')}
                             </tr>
                         \`;
                     }
     
                     function renderRows(nodes, parentId = null) {
-                        return nodes.map(node => renderRow(node, parentId)).join('');
+                        return nodes.map(node => {
+                            const rowHtml = renderRow(node, parentId);
+                            // Recursively render children, always hidden at first
+                            const childrenHtml = node.children && node.children.length > 0
+                                ? renderRows(node.children, node.id)
+                                : '';
+                            return rowHtml + childrenHtml;
+                        }).join('');
                     }
     
                     function loadChildren(nodeId, children) {
@@ -624,6 +684,16 @@ export class TabularViewProvider {
                     });
 
                     function addNode(type) {
+                        if (document.querySelector('tr.add-row')) {
+                            alert('Please save or cancel the current new row before adding another.');
+                            vscode.postMessage({
+                                command: 'error',
+                                data: {
+                                    message: "You can add one node at a time.",
+                                },
+                            });
+                            return;
+                        }
                         const parentId = selectedRow ? selectedRow.getAttribute('data-id') : null;
                         const parentType = selectedRow ? selectedRow.children[3].textContent.trim().toLowerCase() : null;
                         if ((parentType === 'testcase' || ((type === 'requirement' || type==='test') && parentType !== 'requirement') || (type === 'testcase' && parentType !== 'test')) && parentType) {
@@ -631,6 +701,7 @@ export class TabularViewProvider {
                             return;
                         }
                         const newRow = document.createElement('tr');
+                        newRow.classList.add('add-row');
                         newRow.innerHTML = \`
                                 <td></td>
                                 <td><input type="text" placeholder="Name" class="expandable-input"></td>
@@ -736,6 +807,12 @@ export class TabularViewProvider {
 
                         if (!newNode.label) {
                             alert('Name is required.');
+                            vscode.postMessage({
+                                command: 'error',
+                                data: {
+                                    message: "Name is required.",
+                                },
+                            });
                             return;
                         }
 
@@ -836,6 +913,28 @@ export class TabularViewProvider {
                         const columnIndex = Array.from(cell.parentNode.children).indexOf(cell);
                         const rowType = row.children[3].textContent.trim().toLowerCase(); //treba 3
 
+                        if (cell.classList.contains('other-data-cell')) {
+                            if (rowType !== 'requirement'){
+                                return;
+                            }
+                            const key = cell.getAttribute('data-other-key');
+                            const currentValue = cell.textContent.trim();
+                            const input = document.createElement('input');
+                            input.type = 'text';
+                            input.value = currentValue;
+                            input.className = 'expandable-input';
+                            cell.textContent = '';
+                            cell.appendChild(input);
+                            input.focus();
+                            input.addEventListener('blur', () => saveOtherDataEdit(rowId, key, input.value, cell));
+                            input.addEventListener('keydown', (e) => {
+                                if (e.key === 'Enter') {
+                                    saveOtherDataEdit(rowId, key, input.value, cell);
+                                }
+                            });
+                            return;
+                        }
+
                         const editableColumns = {
                             1: 'label', // Name column
                             2: 'description', // Description column
@@ -907,10 +1006,22 @@ export class TabularViewProvider {
                     function saveEdit(rowId, field, newValue, cell) {
                         if (field === 'priority' && !['High', 'Medium', 'Low'].includes(newValue)) {
                             alert('Invalid priority value!');
+                            vscode.postMessage({
+                                command: 'error',
+                                data: {
+                                    message: "Invalid priority value.",
+                                },
+                            });
                             return;
                         }
                         if (field === 'status' && !['Draft', 'Ready', 'Reviewed', 'Approved', 'Released'].includes(newValue)) {
                             alert('Invalid status value!');
+                            vscode.postMessage({
+                                command: 'error',
+                                data: {
+                                    message: "Invalid status value.",
+                                },
+                            });
                             return;
                         }
 
@@ -940,6 +1051,42 @@ export class TabularViewProvider {
                                 field: field,
                                 value: newValue,
                             },
+                        });
+                    }
+
+                    function saveOtherDataEdit(rowId, key, value, cell) {
+                        const node = findNodeById(tree, rowId);
+                        if (!node) return;
+
+                        const expectedType = node.otherDataTypes && node.otherDataTypes[key];
+                        let newValue = value;
+                        let newType = typeof value;
+
+                        // Try to parse as number or boolean if expected
+                        if (expectedType === 'number' && !isNaN(Number(value))) {
+                            newValue = Number(value);
+                            newType = 'number';
+                        } else if (expectedType === 'boolean' && (value === 'true' || value === 'false')) {
+                            newValue = value === 'true';
+                            newType = 'boolean';
+                        }
+
+                        if (expectedType && newType !== expectedType) {
+                            alert('Type mismatch! Value for "' + key + '" must be of type ' + expectedType + '.');
+                            cell.textContent = node.otherData && node.otherData[key] !== undefined ? node.otherData[key] : '';
+                            return;
+                        }
+
+                        // Update UI
+                        cell.textContent = value;
+                        // Send update to backend
+                        vscode.postMessage({
+                            command: 'updateOtherData',
+                            data: {
+                                id: rowId,
+                                key: key,
+                                value: newValue
+                            }
                         });
                     }
                         
@@ -1033,6 +1180,12 @@ export class TabularViewProvider {
                             }));
                             for (const param of updatedParameters) {
                                 if (isValidType(param.type, param.value) === false) {
+                                    vscode.postMessage({
+                                        command: 'error',
+                                        data: {
+                                            message: "Invalid parameter type or value for '" + param.name + "'. Expected type: " + param.type + ".",
+                                        },
+                                    });
                                     return; //message
                                 }
                             }
@@ -1144,6 +1297,35 @@ export class TabularViewProvider {
 
                         modal.classList.remove('hidden'); // Show the modal
                     }
+
+                    let allExpanded = false;
+                    document.getElementById('expandCollapseAll').addEventListener('click', () => {
+                        allExpanded = !allExpanded;
+                        const button = document.getElementById('expandCollapseAll');
+                        button.textContent = allExpanded ? 'Collapse All' : 'Expand All';
+
+                        document.querySelectorAll('tr[data-parent-id]').forEach(row => {
+                            // Hide only if not a root row (parent-id is not null/undefined/empty string)
+                            const parentId = row.getAttribute('data-parent-id');
+                            if (allExpanded) {
+                                row.classList.remove('hidden');
+                            } else if (parentId && parentId !== 'null' && parentId !== '') {
+                                row.classList.add('hidden');
+                            } else {
+                                row.classList.remove('hidden');
+                            }
+                        });
+
+                        // Update expand/collapse icons
+                        document.querySelectorAll('.expandable').forEach(expander => {
+                            const row = expander.closest('tr');
+                            const nodeId = row.getAttribute('data-id');
+                            const node = findNodeById(tree, nodeId);
+                            const level = node && node.level ? node.level : '';
+                            expander.textContent = allExpanded ? \`[-] \${level}\` : \`[+] \${level}\`;
+                            expander.setAttribute('data-loaded', allExpanded ? 'true' : 'false');
+                        });
+                    });
                 </script>
             </body>
             </html>

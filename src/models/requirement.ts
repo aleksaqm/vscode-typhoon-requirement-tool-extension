@@ -12,7 +12,13 @@ export class Requirement extends TreeNode{
         super(id, name, vscode.TreeItemCollapsibleState.Collapsed, 'requirement');
         this.tooltip = `${this.name} - ${this.description}`;
         this.description = this.description || 'No description available';
+        if (!priority){
+            priority = "Medium";
+        }
         this.priority = this.priority;
+        if (!status){
+            status = "Draft";
+        }
         this.status = this.status;
     }
 

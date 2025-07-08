@@ -13,6 +13,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { CoverageCheckWebviewProvider } from './views/coverageCheckWebViewProvider';
 
+let importStatusBarItem: vscode.StatusBarItem | undefined;
+
 export function activate(context: vscode.ExtensionContext) {
 
 	console.log('Congratulations, your extension "typhoon-requirement-tool" is now active!');
@@ -75,6 +77,10 @@ export function activate(context: vscode.ExtensionContext) {
 		requirementDataProvider.editTestCase(node);
 	}));
 
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.editUnknownRequirment', (node: TreeNode) => {
+		requirementDataProvider.editUnknownRequirement(node);
+	}));
+
 	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.deleteNode', (node: TreeNode) => {
 		requirementDataProvider.deleteNode(node);
 	}));
@@ -121,11 +127,16 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 
 		try{
+			showImportStatus(openUri[0].fsPath);
 			const fileContent = await vscode.workspace.fs.readFile(openUri[0]);
 			const reqifContent = fileContent.toString();
 			const nodes = await ReqifFileManager.importFromReqIF(reqifContent);
 			requirementDataProvider.updateTree(nodes);
-			vscode.window.showInformationMessage(`Requirements imported from ${openUri[0].fsPath}`);
+			if (nodes.length === 0){
+				vscode.window.showErrorMessage('No valid requirements found in the ReqIF file.');
+			}else{
+				vscode.window.showInformationMessage(`Requirements imported from ${openUri[0].fsPath}`);
+			}
 		}catch (error : any) {
 			vscode.window.showErrorMessage('Error importing requirements from ReqIF: ' + error.message);
 		}
@@ -163,6 +174,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	
 		try {
+			showImportStatus(openUri[0].fsPath);
 			const fileContent = await vscode.workspace.fs.readFile(openUri[0]);
 			const csvContent = fileContent.toString();
 			requirementDataProvider.importFromReqViewCSV(csvContent);
@@ -304,7 +316,11 @@ export function activate(context: vscode.ExtensionContext) {
 
 }
 
-export function deactivate() {}
+export function deactivate() {
+	if (importStatusBarItem) {
+        importStatusBarItem.dispose();
+    }
+}
 
 async function getPythonInterpreterPath(): Promise<string | undefined> {
     const extension = vscode.extensions.getExtension('ms-python.python');
@@ -352,6 +368,16 @@ async function runTestGeneration(reqifPath: string, outputPath: string) {
             vscode.window.showErrorMessage(`Test generation failed: ${error || output}`);
         }
     });
+}
+
+function showImportStatus(filePath: string) {
+    if (!importStatusBarItem) {
+        importStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+        importStatusBarItem.tooltip = 'Last imported requirements file';
+        importStatusBarItem.show();
+    }
+    const fileName = filePath.split(/[\\/]/).pop();
+    importStatusBarItem.text = `$(file) Requirement file: ${fileName}`;
 }
 
 

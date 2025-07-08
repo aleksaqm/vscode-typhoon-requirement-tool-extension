@@ -8,6 +8,7 @@ import { RequirementWebviewProvider } from './requirementWebViewProvider';
 import { TestWebviewProvider } from './testWebViewProvider';
 import { TestCaseWebviewProvider } from './testCaseWebViewProvider';
 import { DetailsViewProvider } from './detailsViewProvider';
+import { UnknownRequirementWebViewProvider } from './unknownRequirementWebViewProvider';
 
 export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode>{
     private _onDidChangeTreeData: vscode.EventEmitter<TreeNode | undefined | void> = new vscode.EventEmitter<TreeNode | undefined | void>();
@@ -195,6 +196,19 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         });
     }
 
+    // async addUnknownRequirement(parent: TreeNode): Promise<void> {
+    //     UnknownRequirementWebViewProvider.show(parent, (requirement: TreeNode) => {
+    //         if (this.selectedNode) {
+    //             this.selectedNode.children.push(requirement);
+    //             requirement.parent = this.selectedNode;
+    //         }
+    //         this.requirements.push(requirement);
+
+    //         this.updateLevels();
+    //         this.refresh();
+    //     });
+    // }
+
     addNode(node: TreeNode) {
         this.requirements.push(node);
         if (node.parent){
@@ -253,6 +267,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
                 req.description = requirement.description;
                 req.priority = requirement.priority;
                 req.status = requirement.status;
+                req.otherData = requirement.otherData;
             }
             this.refresh();
             this.onNodeSelected(req!);
@@ -286,6 +301,19 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
             }
             this.refresh();
             this.onNodeSelected(testCaseNode!);
+        });
+    }
+
+    editUnknownRequirement(node: TreeNode): void {
+        UnknownRequirementWebViewProvider.show(node, (node: TreeNode) => {
+            console.log("robija");
+            const req = this.requirements.find(req => req.id === node.id);
+            if (req){
+                req.label = node.label;
+                req.otherData = node.otherData;
+            }
+            this.refresh();
+            this.onNodeSelected(req!);
         });
     }
 
@@ -340,7 +368,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         let forLooking = this.getRootNodes();
         let nodeForDelete = null;
         for (var i = 0; i< nodeNames.length; i+=1){
-            const node = forLooking.find((node) => node.label.replace(" ", "_").toLowerCase() === nodeNames[i]);
+            const node = forLooking.find((node) => node.label.replace(/[\s-]/g, "_").toLowerCase() === nodeNames[i].replace("-", "_"));
             if (!node){
                 vscode.window.showErrorMessage("Requirement doesn't exist");
                 break;
@@ -460,27 +488,44 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
     }
 
     exportToReqViewCSV(): string {
-        const rows: string[] = [];
-        rows.push('ID,level,heading,text,priority,status,type,parentID');
-    
-        const serializeNode = (node: TreeNode, parentID: string | null, level=1) => {
-            if (node instanceof Requirement){
-                rows.push(`${node.id},${level},${node.label},${node.description || ""},${node.priority},${node.status},SEC,${parentID || ""}`);   //SEC stands for SECTION in reqView
-                if (node.children && node.children.length > 0) {
-                    node.children.forEach(child => serializeNode(child, node.id, level+1));
-                }
+        const otherDataKeys = new Set<string>();
+        const collectOtherDataKeys = (node: TreeNode) => {
+            if (node instanceof Requirement && node.otherData) {
+                const otherDataObj = node.otherData instanceof Map ? Object.fromEntries(node.otherData.entries()) : node.otherData;
+                Object.keys(otherDataObj).forEach(k => otherDataKeys.add(k));
             }
-            else if (node instanceof TestNode){
+            if (node.children) {node.children.forEach(collectOtherDataKeys);}
+        };
+        this.requirements.filter(n => !n.parent).forEach(collectOtherDataKeys);
+
+        const otherDataHeader = Array.from(otherDataKeys).join(',');
+        const header = `ID,level,heading,text,priority,status,type,parentID${otherDataHeader ? ',' + otherDataHeader : ''}`;
+        const rows: string[] = [header];
+
+        const serializeNode = (node: TreeNode, parentID: string | null, level = 1) => {
+            if (node instanceof Requirement) {
+                const otherDataObj = node.otherData instanceof Map ? Object.fromEntries(node.otherData.entries()) : node.otherData || {};
+                const otherDataValues = Array.from(otherDataKeys).map(key => {
+                    let val = otherDataObj[key];
+                    // Escape commas and quotes for CSV
+                    if (val === undefined || val === null) {return '';}
+                    if (typeof val === 'string' && (val.includes(',') || val.includes('"'))) {
+                        return `"${val.replace(/"/g, '""')}"`;
+                    }
+                    return val;
+                }).join(',');
+                rows.push(`${node.id},${level},${node.label},${node.description || ""},${node.priority},${node.status},SEC,${parentID || ""}${otherDataValues ? ',' + otherDataValues : ''}`);
+                if (node.children && node.children.length > 0) {
+                    node.children.forEach(child => serializeNode(child, node.id, level + 1));
+                }
+            } else if (node instanceof TestNode) {
                 rows.push(`${node.id},${level},${node.label},${node.description || ""},"","",FR,${parentID || ""}`);
-                // if (node.children && node.children.length > 0) {
-                //     node.children.forEach(child => serializeNode(child, node.id));
-                // }
             }
         };
-    
+
         const rootNodes = this.requirements.filter(node => !node.parent);
         rootNodes.forEach(node => serializeNode(node, null));
-    
+
         return rows.join('\n');
     }
 
@@ -491,10 +536,10 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
             vscode.window.showErrorMessage('Invalid CSV format: Missing header.');
             return;
         }
-    
+
         var headers = header.split(';').map(h => this.cleanQuotes(h.trim().toLowerCase()));
-        var delimiter = ';';	
-        if (headers.length < 2){
+        var delimiter = ';';
+        if (headers.length < 2) {
             headers = header.split(',').map(h => h.trim().toLowerCase());
             delimiter = ',';
         }
@@ -505,18 +550,22 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
         const priorityIndex = headers.indexOf("priority");
         const statusIndex = headers.indexOf("status");
         const typeIndex = headers.indexOf("type");
-    
+        const parentIdIndex = headers.indexOf("parentid");
+
+        const otherDataStart = Math.max(idIndex, levelIndex, headingIndex, textIndex, priorityIndex, statusIndex, typeIndex, parentIdIndex) + 1;
+        const otherDataKeys = headers.slice(otherDataStart);
+
         if (idIndex === -1 || levelIndex === -1 || headingIndex === -1 || textIndex === -1 || typeIndex === -1) {
             vscode.window.showErrorMessage('Invalid CSV format: Missing required fields.');
             return;
         }
-    
+
         const nodesMap: Map<string, TreeNode> = new Map();
         const rootNodes: TreeNode[] = [];
         this.requirements = [];
-    
+
         const stack: { level: number; node: TreeNode }[] = [];
-    
+
         rows.forEach(row => {
             const columns = row.split(delimiter).map(col => this.cleanQuotes(col.trim()));
             const id = columns[idIndex];
@@ -526,9 +575,10 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
             const priority = priorityIndex !== -1 ? columns[priorityIndex] : 'Medium';
             const status = statusIndex !== -1 ? columns[statusIndex] : 'Draft';
             const type = columns[typeIndex];
-    
+            const parentId = parentIdIndex !== -1 ? columns[parentIdIndex] : undefined;
+
             const parsedLevel = parseInt(level.replace(/"/g, ''));
-    
+
             let node: TreeNode;
             if (type === 'SEC') {
                 node = new Requirement(
@@ -538,18 +588,32 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
                     priority as "High" | "Medium" | "Low",
                     status as "Draft" | "Ready" | "Reviewed" | "Approved" | "Released"
                 );
+                const otherData: Record<string, any> = {};
+                otherDataKeys.forEach((key, idx) => {
+                    const val = columns[otherDataStart + idx];
+                    if (val !== undefined && val !== '') {
+                        if (!isNaN(Number(val))) {
+                            otherData[key] = Number(val);
+                        } else if (val === 'true' || val === 'false') {
+                            otherData[key] = val === 'true';
+                        } else {
+                            otherData[key] = val;
+                        }
+                    }
+                });
+                node.otherData = otherData;
             } else if (type === 'FR') {
                 node = new TestNode(id, name, description);
             } else {
                 return;
             }
-    
+
             nodesMap.set(id, node);
-    
+
             while (stack.length > 0 && stack[stack.length - 1].level >= parsedLevel) {
                 stack.pop();
             }
-    
+
             if (stack.length > 0) {
                 const parent = stack[stack.length - 1].node;
                 parent.children.push(node);
@@ -560,8 +624,7 @@ export class RequirementTreeProvider implements vscode.TreeDataProvider<TreeNode
             this.requirements.push(node);
             stack.push({ level: parsedLevel, node });
         });
-    
-        // this.requirements = rootNodes;
+
         this.updateLevels();
         this.refresh();
     }
