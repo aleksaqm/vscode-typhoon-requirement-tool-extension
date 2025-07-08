@@ -684,6 +684,16 @@ export class TabularViewProvider {
                     });
 
                     function addNode(type) {
+                        if (document.querySelector('tr.add-row')) {
+                            alert('Please save or cancel the current new row before adding another.');
+                            vscode.postMessage({
+                                command: 'error',
+                                data: {
+                                    message: "You can add one node at a time.",
+                                },
+                            });
+                            return;
+                        }
                         const parentId = selectedRow ? selectedRow.getAttribute('data-id') : null;
                         const parentType = selectedRow ? selectedRow.children[3].textContent.trim().toLowerCase() : null;
                         if ((parentType === 'testcase' || ((type === 'requirement' || type==='test') && parentType !== 'requirement') || (type === 'testcase' && parentType !== 'test')) && parentType) {
@@ -691,6 +701,7 @@ export class TabularViewProvider {
                             return;
                         }
                         const newRow = document.createElement('tr');
+                        newRow.classList.add('add-row');
                         newRow.innerHTML = \`
                                 <td></td>
                                 <td><input type="text" placeholder="Name" class="expandable-input"></td>
