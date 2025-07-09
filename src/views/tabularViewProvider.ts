@@ -467,7 +467,8 @@ export class TabularViewProvider {
                     <button id="addTestCase">Add Test Case</button>
                     <button id="deleteRow">Delete Row</button>
                     <button id="removeIcons">Remove Errors/Warnings</button>
-                    <button id="expandCollapseAll">Expand All</button>
+                    <button id="expandAll">Expand All</button>
+                    <button id="collapseAll">Collapse All</button>
                 </div>
                 <table>
                     <thead>
@@ -1339,32 +1340,39 @@ export class TabularViewProvider {
                         modal.classList.remove('hidden'); // Show the modal
                     }
 
-                    let allExpanded = false;
-                    document.getElementById('expandCollapseAll').addEventListener('click', () => {
-                        allExpanded = !allExpanded;
-                        const button = document.getElementById('expandCollapseAll');
-                        button.textContent = allExpanded ? 'Collapse All' : 'Expand All';
-
+                    document.getElementById('expandAll').addEventListener('click', () => {
                         document.querySelectorAll('tr[data-parent-id]').forEach(row => {
-                            // Hide only if not a root row (parent-id is not null/undefined/empty string)
-                            const parentId = row.getAttribute('data-parent-id');
-                            if (allExpanded) {
-                                row.classList.remove('hidden');
-                            } else if (parentId && parentId !== 'null' && parentId !== '') {
-                                row.classList.add('hidden');
-                            } else {
-                                row.classList.remove('hidden');
-                            }
+                            row.classList.remove('hidden');
                         });
-
-                        // Update expand/collapse icons
+                        // Update expand icons
                         document.querySelectorAll('.expandable').forEach(expander => {
                             const row = expander.closest('tr');
                             const nodeId = row.getAttribute('data-id');
                             const node = findNodeById(tree, nodeId);
                             const level = node && node.level ? node.level : '';
-                            expander.textContent = allExpanded ? \`[-] \${level}\` : \`[+] \${level}\`;
-                            expander.setAttribute('data-loaded', allExpanded ? 'true' : 'false');
+                            expander.textContent = \`[-] \${level}\`;
+                            expander.setAttribute('data-loaded', 'true');
+                        });
+                    });
+
+                    document.getElementById('collapseAll').addEventListener('click', () => {
+                        document.querySelectorAll('tr[data-parent-id]').forEach(row => {
+                            // Hide only if not a root row (parent-id is not null/undefined/empty string)
+                            const parentId = row.getAttribute('data-parent-id');
+                            if (parentId && parentId !== 'null' && parentId !== '') {
+                                row.classList.add('hidden');
+                            } else {
+                                row.classList.remove('hidden');
+                            }
+                        });
+                        // Update collapse icons
+                        document.querySelectorAll('.expandable').forEach(expander => {
+                            const row = expander.closest('tr');
+                            const nodeId = row.getAttribute('data-id');
+                            const node = findNodeById(tree, nodeId);
+                            const level = node && node.level ? node.level : '';
+                            expander.textContent = \`[+] \${level}\`;
+                            expander.setAttribute('data-loaded', 'false');
                         });
                     });
                 </script>

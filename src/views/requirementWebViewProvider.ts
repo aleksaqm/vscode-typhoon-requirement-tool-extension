@@ -90,6 +90,15 @@ export class RequirementWebviewProvider {
                     .remove-button:hover {
                         background: #b71c1c;
                     }
+                    label {
+                        margin-top: 8px;
+                        margin-bottom: 0px;
+                        padding-bottom: 0px;
+                    }
+                    vscode-dropdown {
+                        marign-top: 0px;
+                        padding-top: 0px;
+                    }
                 </style>
             </head>
             <body>
@@ -99,11 +108,13 @@ export class RequirementWebviewProvider {
                     <vscode-text-area id="description" value="${description}" rows="4" resize="vertical" required>
                         Requirement Description
                     </vscode-text-area>
+                    <label for="priority">Priority:</label>
                     <vscode-dropdown id="priority">
                         <vscode-option value="High" ${priority === 'High' ? 'selected' : ''}>High</vscode-option>
                         <vscode-option value="Medium" ${priority === 'Medium' ? 'selected' : ''}>Medium</vscode-option>
                         <vscode-option value="Low" ${priority === 'Low' ? 'selected' : ''}>Low</vscode-option>
                     </vscode-dropdown>
+                    <label for="status">Status:</label>
                     <vscode-dropdown id="status">
                         <vscode-option value="Draft" ${status === 'Draft' ? 'selected' : ''}>Draft</vscode-option>
                         <vscode-option value="Ready" ${status === 'Ready' ? 'selected' : ''}>Ready</vscode-option>
