@@ -469,6 +469,8 @@ export class ReqifFileManager{
                             }
                             if (!parsedValue){
                                 console.log("Unable to parse value");
+                                console.log(value);
+                                console.log(valueTypeKey);
                                 allParametersLoaded = false;
                             }
 

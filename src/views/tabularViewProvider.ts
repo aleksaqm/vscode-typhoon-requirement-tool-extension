@@ -1179,6 +1179,34 @@ export class TabularViewProvider {
                                 value: row.querySelector('.parameter-value').value.trim(),
                             }));
                             for (const param of updatedParameters) {
+                                if (!param.value) {
+                                    console.log("Parameter value cannot be empty.");
+                                    vscode.postMessage({
+                                        command: 'error',
+                                        data: {
+                                            message: "Parameter value cannot be empty.",
+                                        },
+                                    });
+                                    return;
+                                }
+                                if (!param.name) {
+                                    vscode.postMessage({
+                                        command: 'error',
+                                        data: {
+                                            message: "Parameter name cannot be empty.",
+                                        },
+                                    });
+                                    return;
+                                }
+                                if (param.name.trim().includes(' ')) {
+                                    vscode.postMessage({
+                                        command: 'error',
+                                        data: {
+                                            message: "Parameter name cannot contain spaces.",
+                                        },
+                                    });
+                                    return; //message
+                                }
                                 if (isValidType(param.type, param.value) === false) {
                                     vscode.postMessage({
                                         command: 'error',
@@ -1188,6 +1216,7 @@ export class TabularViewProvider {
                                     });
                                     return; //message
                                 }
+                                
                             }
                             modal.classList.add('hidden'); // Hide the modal
                             onSave(updatedParameters);
