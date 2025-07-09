@@ -456,6 +456,15 @@ export class TabularViewProvider {
                         color: #fff !important;
                         font-weight: bold;
                     }
+
+                    #parametersTable {
+                        table-layout: fixed;
+                    }
+                    #parametersTable td, #parametersTable th {
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        white-space: nowrap;
+                    }
                     
                 </style>
             </head>
@@ -513,12 +522,19 @@ export class TabularViewProvider {
                 <div id="arrayModal" class="hidden">
                     <div class="modal-content">
                         <h2>Manage Items</h2>
-                        <ul id="arrayItemsList">
+                        <ul id="arrayItemsList" style="width: 100%; padding: 0;">
                             <!-- Array items will be dynamically added here -->
                         </ul>
-                        <input type="text" id="newArrayItem" placeholder="Add new item" />
-                        <div class="array-modal-buttons">
+                        <div style="display: flex; align-items: center; gap: 8px; width: 100%; margin-bottom: 8px;">
+                            <input
+                                type="text"
+                                id="newArrayItem"
+                                placeholder="Add new item"
+                                style="flex: 1; max-width: 240px; background: var(--vscode-input-background, #1e1e1e); color: var(--vscode-input-foreground, #cccccc); border: 1px solid var(--vscode-input-border, #454545); border-radius: 4px; padding: 4px 6px; box-sizing: border-box;"
+                            />
                             <button id="addArrayItem">Add</button>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; width: 100%; margin-bottom: 8px;">
                             <button id="saveArrayItems">Save</button>
                             <button id="cancelArrayItems">Cancel</button>
                         </div>
@@ -728,7 +744,7 @@ export class TabularViewProvider {
                                 </td>
                                 <td>\${type === 'testcase' ? '<input type="text" placeholder="Steps" class="expandable-input">' : ''}</td>
                                 <td>\${type === 'testcase' ? '<input type="text" placeholder="Prerequisites" class="expandable-input">' : ''}</td>
-                                <td>\${type === 'testcase' ? '<input type="text" placeholder="Parameters" class="expandable-input">' : ''}</td>
+                                <td>\${type === 'testcase' ? '<span style="color:#888;">(use Manage)</span>' : ''}</td>
                             \`;
 
                         const table = document.getElementById('requirementsTable');
@@ -1131,18 +1147,30 @@ export class TabularViewProvider {
                         parameters.forEach((param, index) => {
                             const row = document.createElement('tr');
                             row.innerHTML = \`
-                                <td><input type="text" value="\${param.name}" class="parameter-name"></td>
                                 <td>
-                                    <select class="parameter-type">
-                                        <option value="string" $\{param.type === 'string' ? 'selected' : ''}>String</option>
-                                        <option value="int" $\{param.type === 'int' ? 'selected' : ''}>Integer</option>
-                                        <option value="float" $\{param.type === 'float' ? 'selected' : ''}>Float</option>
+                                    <input type="text" value="\${param.name}" class="parameter-name" 
+                                        style="width: 100%; max-width: 140px; box-sizing: border-box; padding: 4px 6px; border-radius: 4px; border: 1px solid var(--vscode-input-border, #454545); background: var(--vscode-input-background, #1e1e1e); color: var(--vscode-input-foreground, #cccccc);" />
+                                </td>
+                                <td>
+                                    <select class="parameter-type" 
+                                        style="width: 100%; max-width: 120px; box-sizing: border-box; padding: 4px 6px; border-radius: 4px; border: 1px solid var(--vscode-input-border, #454545); background: var(--vscode-input-background, #1e1e1e); color: var(--vscode-input-foreground, #cccccc);">
+                                        <option value="string" \${param.type === 'string' ? 'selected' : ''}>String</option>
+                                        <option value="int" \${param.type === 'int' ? 'selected' : ''}>Integer</option>
+                                        <option value="float" \${param.type === 'float' ? 'selected' : ''}>Float</option>
                                         <option value="bool" \${param.type === 'bool' ? 'selected' : ''}>Boolean</option>
                                         <option value="array" \${param.type === 'array' ? 'selected' : ''}>Array</option>
                                     </select>
                                 </td>
-                                <td><input type="text" value="\${param.value}" class="parameter-value"></td>
-                                <td><button class="delete-parameter" data-index="\${index}">Delete</button></td>
+                                <td>
+                                    <input type="text" value="\${param.value}" class="parameter-value"
+                                        style="width: 100%; max-width: 140px; box-sizing: border-box; padding: 4px 6px; border-radius: 4px; border: 1px solid var(--vscode-input-border, #454545); background: var(--vscode-input-background, #1e1e1e); color: var(--vscode-input-foreground, #cccccc);" />
+                                </td>
+                                <td>
+                                    <button class="delete-parameter" data-index="\${index}" 
+                                        style="padding: 4px 10px; border-radius: 4px; border: none; background: var(--vscode-button-secondaryBackground, #b52020); color: #fff; cursor: pointer;">
+                                        Delete
+                                    </button>
+                                </td>
                             \`;
                             parametersTable.appendChild(row);
                         });
@@ -1150,9 +1178,13 @@ export class TabularViewProvider {
                         document.getElementById('addParameter').onclick = () => {
                             const row = document.createElement('tr');
                             row.innerHTML = \`
-                                <td><input type="text" class="parameter-name"></td>
                                 <td>
-                                    <select class="parameter-type">
+                                    <input type="text" class="parameter-name"
+                                        style="width: 100%; max-width: 140px; box-sizing: border-box; padding: 4px 6px; border-radius: 4px; border: 1px solid var(--vscode-input-border, #454545); background: var(--vscode-input-background, #1e1e1e); color: var(--vscode-input-foreground, #cccccc);" />
+                                </td>
+                                <td>
+                                    <select class="parameter-type"
+                                        style="width: 100%; max-width: 120px; box-sizing: border-box; padding: 4px 6px; border-radius: 4px; border: 1px solid var(--vscode-input-border, #454545); background: var(--vscode-input-background, #1e1e1e); color: var(--vscode-input-foreground, #cccccc);">
                                         <option value="string">String</option>
                                         <option value="int">Integer</option>
                                         <option value="float">Float</option>
@@ -1160,8 +1192,16 @@ export class TabularViewProvider {
                                         <option value="array">Array</option>
                                     </select>
                                 </td>
-                                <td><input type="text" class="parameter-value"></td>
-                                <td><button class="delete-parameter">Delete</button></td>
+                                <td>
+                                    <input type="text" class="parameter-value"
+                                        style="width: 100%; max-width: 140px; box-sizing: border-box; padding: 4px 6px; border-radius: 4px; border: 1px solid var(--vscode-input-border, #454545); background: var(--vscode-input-background, #1e1e1e); color: var(--vscode-input-foreground, #cccccc);" />
+                                </td>
+                                <td>
+                                    <button class="delete-parameter"
+                                        style="padding: 4px 10px; border-radius: 4px; border: none; background: var(--vscode-button-secondaryBackground, #b52020); color: #fff; cursor: pointer;">
+                                        Delete
+                                    </button>
+                                </td>
                             \`;
                             parametersTable.appendChild(row);
                         };
@@ -1300,9 +1340,19 @@ export class TabularViewProvider {
 
                         currentItems.forEach((item, index) => {
                             const listItem = document.createElement('li');
+                            listItem.style.display = 'flex';
+                            listItem.style.alignItems = 'center';
+                            listItem.style.gap = '8px';
+                            listItem.style.marginBottom = '6px';
                             listItem.innerHTML = \`
-                                <input type="text" value="\${item}" class="array-item-input" />
-                                <button class="delete-array-item" data-index="\${index}">Delete</button>
+                                <input type="text" value="\${item}" class="array-item-input"
+                                    style="flex:1; max-width: 240px; box-sizing: border-box; padding: 4px 6px; border-radius: 4px;
+                                    border: 1px solid var(--vscode-input-border, #454545); background: var(--vscode-input-background, #1e1e1e);
+                                    color: var(--vscode-input-foreground, #cccccc);" />
+                                <button class="delete-array-item" data-index="\${index}"
+                                    style="padding: 4px 10px; border-radius: 4px; border: none; background: var(--vscode-button-secondaryBackground, #b52020); color: #fff; cursor: pointer;">
+                                    Delete
+                                </button>
                             \`;
                             itemsList.appendChild(listItem);
                         });
@@ -1311,12 +1361,22 @@ export class TabularViewProvider {
                             const value = newItemInput.value.trim();
                             if (value) {
                                 const listItem = document.createElement('li');
+                                listItem.style.display = 'flex';
+                                listItem.style.alignItems = 'center';
+                                listItem.style.gap = '8px';
+                                listItem.style.marginBottom = '6px';
                                 listItem.innerHTML = \`
-                                    <input type="text" value="\${value}" class="array-item-input" />
-                                    <button class="delete-array-item">Delete</button>
+                                    <input type="text" value="\${value}" class="array-item-input"
+                                        style="flex:1; max-width: 240px; box-sizing: border-box; padding: 4px 6px; border-radius: 4px;
+                                        border: 1px solid var(--vscode-input-border, #454545); background: var(--vscode-input-background, #1e1e1e);
+                                        color: var(--vscode-input-foreground, #cccccc);" />
+                                    <button class="delete-array-item"
+                                        style="padding: 4px 10px; border-radius: 4px; border: none; background: var(--vscode-button-secondaryBackground, #b52020); color: #fff; cursor: pointer;">
+                                        Delete
+                                    </button>
                                 \`;
-                                itemsList.appendChild(listItem);
                                 newItemInput.value = '';
+                                itemsList.appendChild(listItem);
                             }
                         };
 
@@ -1334,6 +1394,7 @@ export class TabularViewProvider {
                         };
 
                         document.getElementById('cancelArrayItems').onclick = () => {
+                            newItemInput.value = '';
                             modal.classList.add('hidden'); // Hide the modal
                         };
 
