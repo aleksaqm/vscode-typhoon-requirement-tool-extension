@@ -1173,11 +1173,23 @@ export class TabularViewProvider {
                         });
 
                         document.getElementById('saveParameters').onclick = () => {
-                            const updatedParameters = Array.from(parametersTable.querySelectorAll('tr')).map((row) => ({
-                                name: row.querySelector('.parameter-name').value.trim(),
-                                type: row.querySelector('.parameter-type').value,
-                                value: row.querySelector('.parameter-value').value.trim(),
-                            }));
+                            console.log("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL");
+                            console.log(Array.from(parametersTable.querySelectorAll('tr')));
+                            const updatedParameters = Array.from(parametersTable.querySelectorAll('tr'))
+                                .map((row) => {
+                                    const nameInput = row.querySelector('.parameter-name');
+                                    const typeInput = row.querySelector('.parameter-type');
+                                    const valueInput = row.querySelector('.parameter-value');
+                                    if (!nameInput || !typeInput || !valueInput) {
+                                        return null; // skip incomplete rows
+                                    }
+                                    return {
+                                        name: nameInput.value.trim(),
+                                        type: typeInput.value,
+                                        value: valueInput.value.trim(),
+                                    };
+                                })
+                                .filter(Boolean); // remove nulls
                             for (const param of updatedParameters) {
                                 if (!param.value) {
                                     console.log("Parameter value cannot be empty.");
