@@ -37,7 +37,6 @@ export class CoverageCheckWebviewProvider {
         process.on('close', (code) => {
             if (code === 0) {
                 const diff = JSON.parse(result);
-                console.log(diff);
                 this.diff = diff;
 
                 if (updateExisting && this.panel) {
@@ -170,7 +169,6 @@ export class CoverageCheckWebviewProvider {
                                 });
                             }else{
                                 node.parameters.forEach(parameter => {
-                                    console.log(newParams);
                                     var newParameterValue = newParams[parameter.name];
                                     if (newParameterValue){
                                         parameter.value = newParameterValue;

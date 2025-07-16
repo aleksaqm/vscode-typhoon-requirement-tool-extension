@@ -32,8 +32,9 @@ export class DetailsViewProvider implements vscode.WebviewViewProvider {
     }
 
     private getNodeDetails(node: TreeNode): string {
+        let html = '';
         if (node instanceof Requirement) {
-            return `
+            html = `
                 <h2>Requirement Details</h2>
                 <p><strong>Name:</strong> ${node.label}</p>
                 <p><strong>Description:</strong> ${node.description}</p>
@@ -41,14 +42,14 @@ export class DetailsViewProvider implements vscode.WebviewViewProvider {
                 <p><strong>Status:</strong> ${node.status}</p>
             `;
         } else if (node instanceof TestNode) {
-            return `
+            html = `
                 <h2>Test Details</h2>
                 <p><strong>Name:</strong> ${node.label}</p>
                 <p><strong>Description:</strong> ${node.description}</p>
             `;
         } else if (node instanceof TestCase) {
             const parametersTable = node.parameters.length > 0;
-            return `
+            html = `
                 <h2>Test Case Details</h2>
                 <p><strong>Name:</strong> ${node.label}</p>
                 <p><strong>Scenario:</strong> ${node.scenario}</p>
@@ -57,30 +58,64 @@ export class DetailsViewProvider implements vscode.WebviewViewProvider {
                 ${parametersTable ? `
                     <p><strong>Parameters:</strong></p>
                     <table border="1" style="border-collapse: collapse; width: 100%; margin-top: 10px;">
-                                        <thead>
-                                            <tr>
-                                                <th style="padding: 8px; text-align: left;">Name</th>
-                                                <th style="padding: 8px; text-align: left;">Type</th>
-                                                <th style="padding: 8px; text-align: left;">Value</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            ${node.parameters
-                                                .map(
-                                                    (param) => `
-                                                    <tr>
-                                                        <td style="padding: 8px;">${param.name}</td>
-                                                        <td style="padding: 8px;">${param.type}</td>
-                                                        <td style="padding: 8px;">${param.value}</td>
-                                                    </tr>
-                                                `
-                                                )
-                                                .join('')}
-                                        </tbody>
-                                    </table>` : '<p>No parameters available.</p>'}
-                                    `;
+                        <thead>
+                            <tr>
+                                <th style="padding: 8px; text-align: left;">Name</th>
+                                <th style="padding: 8px; text-align: left;">Type</th>
+                                <th style="padding: 8px; text-align: left;">Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${node.parameters
+                                .map(
+                                    (param) => `
+                                    <tr>
+                                        <td style="padding: 8px;">${param.name}</td>
+                                        <td style="padding: 8px;">${param.type}</td>
+                                        <td style="padding: 8px;">${param.value}</td>
+                                    </tr>
+                                `
+                                )
+                                .join('')}
+                        </tbody>
+                    </table>` : '<p>No parameters available.</p>'}
+            `;
         }
-        return '<p>No details available.</p>';
+
+        if (node.otherData && typeof node.otherData === 'object') {
+            let entries: [string, any][] = [];
+            if (node.otherData instanceof Map) {
+                entries = Array.from(node.otherData.entries());
+            } else {
+                entries = Object.entries(node.otherData);
+            }
+            if (entries.length > 0) {
+                html += `
+                    <h3>Additional Data</h3>
+                    <table border="1" style="border-collapse: collapse; width: 100%; margin-top: 10px;">
+                        <thead>
+                            <tr>
+                                <th style="padding: 8px; text-align: left;">Key</th>
+                                <th style="padding: 8px; text-align: left;">Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${entries.map(([key, value]) => `
+                                <tr>
+                                    <td style="padding: 8px;">${key}</td>
+                                    <td style="padding: 8px;">${typeof value === 'object' ? JSON.stringify(value) : value}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            }
+        }
+
+        if (!html) {
+            html = '<p>No details available.</p>';
+        }
+        return html;
     }
 
     private getHtmlContent(): string {

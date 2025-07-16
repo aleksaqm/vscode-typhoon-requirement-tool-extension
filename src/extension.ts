@@ -13,6 +13,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { CoverageCheckWebviewProvider } from './views/coverageCheckWebViewProvider';
 
+let importStatusBarItem: vscode.StatusBarItem | undefined;
+
 export function activate(context: vscode.ExtensionContext) {
 
 	console.log('Congratulations, your extension "typhoon-requirement-tool" is now active!');
@@ -75,6 +77,10 @@ export function activate(context: vscode.ExtensionContext) {
 		requirementDataProvider.editTestCase(node);
 	}));
 
+	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.editUnknownRequirment', (node: TreeNode) => {
+		requirementDataProvider.editUnknownRequirement(node);
+	}));
+
 	context.subscriptions.push(vscode.commands.registerCommand('typhoon-requirement-tool.deleteNode', (node: TreeNode) => {
 		requirementDataProvider.deleteNode(node);
 	}));
@@ -121,11 +127,16 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 
 		try{
+			showImportStatus(openUri[0].fsPath);
 			const fileContent = await vscode.workspace.fs.readFile(openUri[0]);
 			const reqifContent = fileContent.toString();
 			const nodes = await ReqifFileManager.importFromReqIF(reqifContent);
 			requirementDataProvider.updateTree(nodes);
-			vscode.window.showInformationMessage(`Requirements imported from ${openUri[0].fsPath}`);
+			if (nodes.length === 0){
+				vscode.window.showErrorMessage('No valid requirements found in the ReqIF file.');
+			}else{
+				vscode.window.showInformationMessage(`Requirements imported from ${openUri[0].fsPath}`);
+			}
 		}catch (error : any) {
 			vscode.window.showErrorMessage('Error importing requirements from ReqIF: ' + error.message);
 		}
@@ -163,6 +174,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	
 		try {
+			showImportStatus(openUri[0].fsPath);
 			const fileContent = await vscode.workspace.fs.readFile(openUri[0]);
 			const csvContent = fileContent.toString();
 			requirementDataProvider.importFromReqViewCSV(csvContent);
@@ -202,7 +214,7 @@ export function activate(context: vscode.ExtensionContext) {
 			const ignorePath = path.join(outputPath, ignoreName);
 			fs.writeFileSync(ignorePath, "", 'utf-8');
 
-			runTestGeneration(reqifPath, outputPath);
+			await runTestGeneration(reqifPath, outputPath);
 		}catch (err: any){
 			vscode.window.showErrorMessage(`Unexpected error during test generation: ${err.message}`);
 		}
@@ -234,7 +246,7 @@ export function activate(context: vscode.ExtensionContext) {
 			const ignorePath = path.join(outputDir, ignoreName);
 			fs.writeFileSync(ignorePath, "", 'utf-8');
 	
-			runTestGeneration(reqifPath, outputDir);
+			await runTestGeneration(reqifPath, outputDir);
 	
 		} catch (err: any) {
 			vscode.window.showErrorMessage(`Unexpected error during test generation: ${err.message}`);
@@ -304,29 +316,69 @@ export function activate(context: vscode.ExtensionContext) {
 
 }
 
-export function deactivate() {}
-
-
-function runTestGeneration(reqifPath: string, outputPath: string) {
-    const process = spawn('typhoon_testgen', [reqifPath, outputPath]);
-	let output = '';
-	let error = '';
-
-	process.stdout.on('data', (data) => {
-		output += data.toString();
-	});
-	process.stderr.on('data', (data) => {
-		error += data.toString();
-	});
-	process.on('close', (code) => {
-		if (code === 0) {
-			vscode.window.showInformationMessage('Tests generated successfully!');
-		} else {
-			vscode.window.showErrorMessage(`Test generation failed: ${error || output}`);
-		}
-	});
+export function deactivate() {
+	if (importStatusBarItem) {
+        importStatusBarItem.dispose();
+    }
 }
 
+async function getPythonInterpreterPath(): Promise<string | undefined> {
+    const extension = vscode.extensions.getExtension('ms-python.python');
+    if (!extension) {return undefined;}
+    if (!extension.isActive) {
+        await extension.activate();
+    }
+    // @ts-ignore
+    const pythonPath = extension.exports.settings.getExecutionDetails().execCommand[0];
+    return pythonPath;
+}
+
+async function runTestGeneration(reqifPath: string, outputPath: string) {
+    const pythonPath = await getPythonInterpreterPath();
+    if (!pythonPath) {
+        vscode.window.showErrorMessage('Could not determine Python interpreter path.');
+        return;
+    }
+
+    let venvBinDir: string | undefined = undefined;
+    if (pythonPath) {
+        const venvDir = path.dirname(path.dirname(pythonPath));
+        venvBinDir = path.join(venvDir, os.platform() === 'win32' ? 'Scripts' : 'bin');
+    }
+
+    const env = { ...process.env };
+    if (venvBinDir) {
+        env.PATH = venvBinDir + path.delimiter + env.PATH;
+    }
+
+    const processSpawn = spawn('typhoon_testgen', [reqifPath, outputPath], { env });
+    let output = '';
+    let error = '';
+
+    processSpawn.stdout.on('data', (data) => {
+        output += data.toString();
+    });
+    processSpawn.stderr.on('data', (data) => {
+        error += data.toString();
+    });
+    processSpawn.on('close', (code) => {
+        if (code === 0) {
+            vscode.window.showInformationMessage('Tests generated successfully!');
+        } else {
+            vscode.window.showErrorMessage(`Test generation failed: ${error || output}`);
+        }
+    });
+}
+
+function showImportStatus(filePath: string) {
+    if (!importStatusBarItem) {
+        importStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+        importStatusBarItem.tooltip = 'Last imported requirements file';
+        importStatusBarItem.show();
+    }
+    const fileName = filePath.split(/[\\/]/).pop();
+    importStatusBarItem.text = `$(file) Requirement file: ${fileName}`;
+}
 
 
 

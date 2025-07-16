@@ -83,6 +83,10 @@ export class TabularViewProvider {
                 this.allNodes.forEach(clearIcons);
                 TabularViewProvider.panel?.webview.postMessage({ command: 'iconsRemoved' });
                 TabularViewProvider.panel!.webview.html = TabularViewProvider.getHtml([], false);
+            }else if (message.command === 'updateOtherData') {
+                this.updateOtherData(message.data.id, message.data.key, message.data.value);
+            }else if (message.command === 'error'){
+                vscode.window.showErrorMessage(message.data.message);
             }
         });
     }
@@ -127,13 +131,26 @@ export class TabularViewProvider {
     }
 
     private static serializeTree(nodes: TreeNode[]): any[] {
-        return nodes.map(node => {
+        function serializeNode(node: TreeNode): any {
+            let otherDataObj = node.otherData;
+            let otherDataTypes: Record<string, string> = {};
+            if (otherDataObj instanceof Map) {
+                otherDataObj = Object.fromEntries(otherDataObj.entries());
+            }
+            if (otherDataObj && typeof otherDataObj === 'object') {
+                for (const [k, v] of Object.entries(otherDataObj)) {
+                    otherDataTypes[k] = typeof v;
+                }
+            }
             const { parent, ...rest } = node;
             return {
                 ...rest,
-                children: node.children ? TabularViewProvider.serializeTree(node.children) : [],
+                otherData: otherDataObj,
+                otherDataTypes,
+                children: node.children ? node.children.map(serializeNode) : [],
             };
-        });
+        }
+        return nodes.map(serializeNode);
     }
 
     private static async deleteNode(id: string): Promise<void> {
@@ -216,9 +233,40 @@ export class TabularViewProvider {
         }
     }
 
+    private static getAllOtherDataKeys(nodes: any[]): string[] {
+        const keys = new Set<string>();
+        function collect(node: any) {
+            if (node.contextValue === 'requirement' && node.otherData) {
+                const entries = node.otherData instanceof Map
+                    ? Array.from(node.otherData.keys())
+                    : Object.keys(node.otherData);
+                entries.forEach(k => keys.add(String(k)));
+            }
+            if (node.children) {node.children.forEach(collect);}
+        }
+        nodes.forEach(collect);
+        return Array.from(keys);
+    }
+
+    private static updateOtherData(id: string, key: string, value: string): void {
+        const node = this.requirementDataProvider 
+            ? this.findNodeById(this.requirementDataProvider.getAllNodes(), id) 
+            : null;
+        if (node && node.contextValue === 'requirement') {
+            if (!node.otherData) {node.otherData = {};}
+            if (node.otherData instanceof Map) {
+                node.otherData.set(key, value);
+            } else {
+                node.otherData[key] = value;
+            }
+            this.requirementDataProvider?.refresh();
+        }
+    }
+
     private static getHtml(expandedNodeIds: string[] = [], coverageActive: boolean): string {
         const treeJson = JSON.stringify(this.allNodes);
         const expandedIdsJson = JSON.stringify(expandedNodeIds);
+        const otherDataKeys = TabularViewProvider.getAllOtherDataKeys(this.allNodes);
         return `
             <!DOCTYPE html>
             <html lang="en">
@@ -408,6 +456,15 @@ export class TabularViewProvider {
                         color: #fff !important;
                         font-weight: bold;
                     }
+
+                    #parametersTable {
+                        table-layout: fixed;
+                    }
+                    #parametersTable td, #parametersTable th {
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        white-space: nowrap;
+                    }
                     
                 </style>
             </head>
@@ -419,6 +476,8 @@ export class TabularViewProvider {
                     <button id="addTestCase">Add Test Case</button>
                     <button id="deleteRow">Delete Row</button>
                     <button id="removeIcons">Remove Errors/Warnings</button>
+                    <button id="expandAll">Expand All</button>
+                    <button id="collapseAll">Collapse All</button>
                 </div>
                 <table>
                     <thead>
@@ -432,6 +491,7 @@ export class TabularViewProvider {
                             <th>Steps</th>
                             <th>Prerequisites</th>
                             <th>Parameters</th>
+                            ${otherDataKeys.map(key => `<th data-other-key="${key}">${key}</th>`).join('')}
                         </tr>
                     </thead>
                     <tbody id="requirementsTable">
@@ -462,12 +522,19 @@ export class TabularViewProvider {
                 <div id="arrayModal" class="hidden">
                     <div class="modal-content">
                         <h2>Manage Items</h2>
-                        <ul id="arrayItemsList">
+                        <ul id="arrayItemsList" style="width: 100%; padding: 0;">
                             <!-- Array items will be dynamically added here -->
                         </ul>
-                        <input type="text" id="newArrayItem" placeholder="Add new item" />
-                        <div class="array-modal-buttons">
+                        <div style="display: flex; align-items: center; gap: 8px; width: 100%; margin-bottom: 8px;">
+                            <input
+                                type="text"
+                                id="newArrayItem"
+                                placeholder="Add new item"
+                                style="flex: 1; max-width: 240px; background: var(--vscode-input-background, #1e1e1e); color: var(--vscode-input-foreground, #cccccc); border: 1px solid var(--vscode-input-border, #454545); border-radius: 4px; padding: 4px 6px; box-sizing: border-box;"
+                            />
                             <button id="addArrayItem">Add</button>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; width: 100%; margin-bottom: 8px;">
                             <button id="saveArrayItems">Save</button>
                             <button id="cancelArrayItems">Cancel</button>
                         </div>
@@ -480,17 +547,23 @@ export class TabularViewProvider {
                     const vscode = acquireVsCodeApi();
                     let coverageActive = ${coverageActive};
 
+                    const otherDataKeys = ${JSON.stringify(otherDataKeys)};
+
                     function renderRow(node, parentId = null) {
                         let rowClass = '';
-                        if (node.iconPath && (typeof node.iconPath === 'object')){
-                            if (node.iconPath.id === 'diff-modified' || node.iconPath.id === 'debug-step-over') {
-                                rowClass = 'warning-row';
-                            }else if (node.iconPath.id === 'diff-removed') {
+                        // ...existing rowClass logic...
+                        if (node.iconPath && typeof node.iconPath === 'object') {
+                            if (node.iconPath.id === 'diff-removed') {
                                 rowClass = 'error-row';
+                            } else if (node.iconPath.id === 'diff-modified') {
+                                rowClass = 'warning-row';
                             }
                         }
                         const hasChildren = node.children && node.children.length > 0;
                         const level = node.level || '';
+                        // Prepare otherData values
+                        let otherData = node.otherData || {};
+                        let otherDataTypes = node.otherDataTypes || {};
                         return \`
                             <tr data-id="\${node.id}" data-parent-id="\${parentId}" class="\${parentId ? 'hidden' : ''} \${rowClass}">
                                 <td>
@@ -498,24 +571,28 @@ export class TabularViewProvider {
                                         ? \`<span class="expandable" data-loaded="false">[+] \${level}</span>\` 
                                         : \`<span data-loaded="false">\${level}</span>\`}
                                 </td>
-                                <td>
-                                    \${node.label || ''}
-                                </td>
+                                <td>\${node.label || ''}</td>
                                 <td>\${node.description || ''}</td>
                                 <td>\${node.contextValue || ''}</td>
                                 <td>\${node.priority || ''}</td>
                                 <td>\${node.status || ''}</td>
                                 <td>\${node.contextValue === 'testCase' ? '<button class="manage-array" data-field="steps">Manage</button>' : ''}</td>
                                 <td>\${node.contextValue === 'testCase' ? '<button class="manage-array" data-field="prerequisites">Manage</button>' : ''}</td>
-                                <td>
-                                    \${node.contextValue === 'testCase' ? '<button class="manage-parameters">Manage</button>' : ''}
-                                </td>
+                                <td>\${node.contextValue === 'testCase' ? '<button class="manage-parameters">Manage</button>' : ''}</td>
+                                \${otherDataKeys.map(key => \`<td class="other-data-cell" data-other-key="\${key}">\${otherData && otherData[key] !== undefined ? otherData[key] : ''}</td>\`).join('')}
                             </tr>
                         \`;
                     }
     
                     function renderRows(nodes, parentId = null) {
-                        return nodes.map(node => renderRow(node, parentId)).join('');
+                        return nodes.map(node => {
+                            const rowHtml = renderRow(node, parentId);
+                            // Recursively render children, always hidden at first
+                            const childrenHtml = node.children && node.children.length > 0
+                                ? renderRows(node.children, node.id)
+                                : '';
+                            return rowHtml + childrenHtml;
+                        }).join('');
                     }
     
                     function loadChildren(nodeId, children) {
@@ -624,6 +701,16 @@ export class TabularViewProvider {
                     });
 
                     function addNode(type) {
+                        if (document.querySelector('tr.add-row')) {
+                            alert('Please save or cancel the current new row before adding another.');
+                            vscode.postMessage({
+                                command: 'error',
+                                data: {
+                                    message: "You can add one node at a time.",
+                                },
+                            });
+                            return;
+                        }
                         const parentId = selectedRow ? selectedRow.getAttribute('data-id') : null;
                         const parentType = selectedRow ? selectedRow.children[3].textContent.trim().toLowerCase() : null;
                         if ((parentType === 'testcase' || ((type === 'requirement' || type==='test') && parentType !== 'requirement') || (type === 'testcase' && parentType !== 'test')) && parentType) {
@@ -631,6 +718,7 @@ export class TabularViewProvider {
                             return;
                         }
                         const newRow = document.createElement('tr');
+                        newRow.classList.add('add-row');
                         newRow.innerHTML = \`
                                 <td></td>
                                 <td><input type="text" placeholder="Name" class="expandable-input"></td>
@@ -656,7 +744,7 @@ export class TabularViewProvider {
                                 </td>
                                 <td>\${type === 'testcase' ? '<input type="text" placeholder="Steps" class="expandable-input">' : ''}</td>
                                 <td>\${type === 'testcase' ? '<input type="text" placeholder="Prerequisites" class="expandable-input">' : ''}</td>
-                                <td>\${type === 'testcase' ? '<input type="text" placeholder="Parameters" class="expandable-input">' : ''}</td>
+                                <td>\${type === 'testcase' ? '<span style="color:#888;">(use Manage)</span>' : ''}</td>
                             \`;
 
                         const table = document.getElementById('requirementsTable');
@@ -736,6 +824,12 @@ export class TabularViewProvider {
 
                         if (!newNode.label) {
                             alert('Name is required.');
+                            vscode.postMessage({
+                                command: 'error',
+                                data: {
+                                    message: "Name is required.",
+                                },
+                            });
                             return;
                         }
 
@@ -836,6 +930,28 @@ export class TabularViewProvider {
                         const columnIndex = Array.from(cell.parentNode.children).indexOf(cell);
                         const rowType = row.children[3].textContent.trim().toLowerCase(); //treba 3
 
+                        if (cell.classList.contains('other-data-cell')) {
+                            if (rowType !== 'requirement'){
+                                return;
+                            }
+                            const key = cell.getAttribute('data-other-key');
+                            const currentValue = cell.textContent.trim();
+                            const input = document.createElement('input');
+                            input.type = 'text';
+                            input.value = currentValue;
+                            input.className = 'expandable-input';
+                            cell.textContent = '';
+                            cell.appendChild(input);
+                            input.focus();
+                            input.addEventListener('blur', () => saveOtherDataEdit(rowId, key, input.value, cell));
+                            input.addEventListener('keydown', (e) => {
+                                if (e.key === 'Enter') {
+                                    saveOtherDataEdit(rowId, key, input.value, cell);
+                                }
+                            });
+                            return;
+                        }
+
                         const editableColumns = {
                             1: 'label', // Name column
                             2: 'description', // Description column
@@ -907,10 +1023,22 @@ export class TabularViewProvider {
                     function saveEdit(rowId, field, newValue, cell) {
                         if (field === 'priority' && !['High', 'Medium', 'Low'].includes(newValue)) {
                             alert('Invalid priority value!');
+                            vscode.postMessage({
+                                command: 'error',
+                                data: {
+                                    message: "Invalid priority value.",
+                                },
+                            });
                             return;
                         }
                         if (field === 'status' && !['Draft', 'Ready', 'Reviewed', 'Approved', 'Released'].includes(newValue)) {
                             alert('Invalid status value!');
+                            vscode.postMessage({
+                                command: 'error',
+                                data: {
+                                    message: "Invalid status value.",
+                                },
+                            });
                             return;
                         }
 
@@ -940,6 +1068,42 @@ export class TabularViewProvider {
                                 field: field,
                                 value: newValue,
                             },
+                        });
+                    }
+
+                    function saveOtherDataEdit(rowId, key, value, cell) {
+                        const node = findNodeById(tree, rowId);
+                        if (!node) return;
+
+                        const expectedType = node.otherDataTypes && node.otherDataTypes[key];
+                        let newValue = value;
+                        let newType = typeof value;
+
+                        // Try to parse as number or boolean if expected
+                        if (expectedType === 'number' && !isNaN(Number(value))) {
+                            newValue = Number(value);
+                            newType = 'number';
+                        } else if (expectedType === 'boolean' && (value === 'true' || value === 'false')) {
+                            newValue = value === 'true';
+                            newType = 'boolean';
+                        }
+
+                        if (expectedType && newType !== expectedType) {
+                            alert('Type mismatch! Value for "' + key + '" must be of type ' + expectedType + '.');
+                            cell.textContent = node.otherData && node.otherData[key] !== undefined ? node.otherData[key] : '';
+                            return;
+                        }
+
+                        // Update UI
+                        cell.textContent = value;
+                        // Send update to backend
+                        vscode.postMessage({
+                            command: 'updateOtherData',
+                            data: {
+                                id: rowId,
+                                key: key,
+                                value: newValue
+                            }
                         });
                     }
                         
@@ -983,18 +1147,30 @@ export class TabularViewProvider {
                         parameters.forEach((param, index) => {
                             const row = document.createElement('tr');
                             row.innerHTML = \`
-                                <td><input type="text" value="\${param.name}" class="parameter-name"></td>
                                 <td>
-                                    <select class="parameter-type">
-                                        <option value="string" $\{param.type === 'string' ? 'selected' : ''}>String</option>
-                                        <option value="int" $\{param.type === 'int' ? 'selected' : ''}>Integer</option>
-                                        <option value="float" $\{param.type === 'float' ? 'selected' : ''}>Float</option>
+                                    <input type="text" value="\${param.name}" class="parameter-name" 
+                                        style="width: 100%; max-width: 140px; box-sizing: border-box; padding: 4px 6px; border-radius: 4px; border: 1px solid var(--vscode-input-border, #454545); background: var(--vscode-input-background, #1e1e1e); color: var(--vscode-input-foreground, #cccccc);" />
+                                </td>
+                                <td>
+                                    <select class="parameter-type" 
+                                        style="width: 100%; max-width: 120px; box-sizing: border-box; padding: 4px 6px; border-radius: 4px; border: 1px solid var(--vscode-input-border, #454545); background: var(--vscode-input-background, #1e1e1e); color: var(--vscode-input-foreground, #cccccc);">
+                                        <option value="string" \${param.type === 'string' ? 'selected' : ''}>String</option>
+                                        <option value="int" \${param.type === 'int' ? 'selected' : ''}>Integer</option>
+                                        <option value="float" \${param.type === 'float' ? 'selected' : ''}>Float</option>
                                         <option value="bool" \${param.type === 'bool' ? 'selected' : ''}>Boolean</option>
                                         <option value="array" \${param.type === 'array' ? 'selected' : ''}>Array</option>
                                     </select>
                                 </td>
-                                <td><input type="text" value="\${param.value}" class="parameter-value"></td>
-                                <td><button class="delete-parameter" data-index="\${index}">Delete</button></td>
+                                <td>
+                                    <input type="text" value="\${param.value}" class="parameter-value"
+                                        style="width: 100%; max-width: 140px; box-sizing: border-box; padding: 4px 6px; border-radius: 4px; border: 1px solid var(--vscode-input-border, #454545); background: var(--vscode-input-background, #1e1e1e); color: var(--vscode-input-foreground, #cccccc);" />
+                                </td>
+                                <td>
+                                    <button class="delete-parameter" data-index="\${index}" 
+                                        style="padding: 4px 10px; border-radius: 4px; border: none; background: var(--vscode-button-secondaryBackground, #b52020); color: #fff; cursor: pointer;">
+                                        Delete
+                                    </button>
+                                </td>
                             \`;
                             parametersTable.appendChild(row);
                         });
@@ -1002,9 +1178,13 @@ export class TabularViewProvider {
                         document.getElementById('addParameter').onclick = () => {
                             const row = document.createElement('tr');
                             row.innerHTML = \`
-                                <td><input type="text" class="parameter-name"></td>
                                 <td>
-                                    <select class="parameter-type">
+                                    <input type="text" class="parameter-name"
+                                        style="width: 100%; max-width: 140px; box-sizing: border-box; padding: 4px 6px; border-radius: 4px; border: 1px solid var(--vscode-input-border, #454545); background: var(--vscode-input-background, #1e1e1e); color: var(--vscode-input-foreground, #cccccc);" />
+                                </td>
+                                <td>
+                                    <select class="parameter-type"
+                                        style="width: 100%; max-width: 120px; box-sizing: border-box; padding: 4px 6px; border-radius: 4px; border: 1px solid var(--vscode-input-border, #454545); background: var(--vscode-input-background, #1e1e1e); color: var(--vscode-input-foreground, #cccccc);">
                                         <option value="string">String</option>
                                         <option value="int">Integer</option>
                                         <option value="float">Float</option>
@@ -1012,8 +1192,16 @@ export class TabularViewProvider {
                                         <option value="array">Array</option>
                                     </select>
                                 </td>
-                                <td><input type="text" class="parameter-value"></td>
-                                <td><button class="delete-parameter">Delete</button></td>
+                                <td>
+                                    <input type="text" class="parameter-value"
+                                        style="width: 100%; max-width: 140px; box-sizing: border-box; padding: 4px 6px; border-radius: 4px; border: 1px solid var(--vscode-input-border, #454545); background: var(--vscode-input-background, #1e1e1e); color: var(--vscode-input-foreground, #cccccc);" />
+                                </td>
+                                <td>
+                                    <button class="delete-parameter"
+                                        style="padding: 4px 10px; border-radius: 4px; border: none; background: var(--vscode-button-secondaryBackground, #b52020); color: #fff; cursor: pointer;">
+                                        Delete
+                                    </button>
+                                </td>
                             \`;
                             parametersTable.appendChild(row);
                         };
@@ -1026,15 +1214,62 @@ export class TabularViewProvider {
                         });
 
                         document.getElementById('saveParameters').onclick = () => {
-                            const updatedParameters = Array.from(parametersTable.querySelectorAll('tr')).map((row) => ({
-                                name: row.querySelector('.parameter-name').value.trim(),
-                                type: row.querySelector('.parameter-type').value,
-                                value: row.querySelector('.parameter-value').value.trim(),
-                            }));
+                            console.log("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL");
+                            console.log(Array.from(parametersTable.querySelectorAll('tr')));
+                            const updatedParameters = Array.from(parametersTable.querySelectorAll('tr'))
+                                .map((row) => {
+                                    const nameInput = row.querySelector('.parameter-name');
+                                    const typeInput = row.querySelector('.parameter-type');
+                                    const valueInput = row.querySelector('.parameter-value');
+                                    if (!nameInput || !typeInput || !valueInput) {
+                                        return null; // skip incomplete rows
+                                    }
+                                    return {
+                                        name: nameInput.value.trim(),
+                                        type: typeInput.value,
+                                        value: valueInput.value.trim(),
+                                    };
+                                })
+                                .filter(Boolean); // remove nulls
                             for (const param of updatedParameters) {
-                                if (isValidType(param.type, param.value) === false) {
+                                if (!param.value) {
+                                    console.log("Parameter value cannot be empty.");
+                                    vscode.postMessage({
+                                        command: 'error',
+                                        data: {
+                                            message: "Parameter value cannot be empty.",
+                                        },
+                                    });
+                                    return;
+                                }
+                                if (!param.name) {
+                                    vscode.postMessage({
+                                        command: 'error',
+                                        data: {
+                                            message: "Parameter name cannot be empty.",
+                                        },
+                                    });
+                                    return;
+                                }
+                                if (param.name.trim().includes(' ')) {
+                                    vscode.postMessage({
+                                        command: 'error',
+                                        data: {
+                                            message: "Parameter name cannot contain spaces.",
+                                        },
+                                    });
                                     return; //message
                                 }
+                                if (isValidType(param.type, param.value) === false) {
+                                    vscode.postMessage({
+                                        command: 'error',
+                                        data: {
+                                            message: "Invalid parameter type or value for '" + param.name + "'. Expected type: " + param.type + ".",
+                                        },
+                                    });
+                                    return; //message
+                                }
+                                
                             }
                             modal.classList.add('hidden'); // Hide the modal
                             onSave(updatedParameters);
@@ -1105,9 +1340,19 @@ export class TabularViewProvider {
 
                         currentItems.forEach((item, index) => {
                             const listItem = document.createElement('li');
+                            listItem.style.display = 'flex';
+                            listItem.style.alignItems = 'center';
+                            listItem.style.gap = '8px';
+                            listItem.style.marginBottom = '6px';
                             listItem.innerHTML = \`
-                                <input type="text" value="\${item}" class="array-item-input" />
-                                <button class="delete-array-item" data-index="\${index}">Delete</button>
+                                <input type="text" value="\${item}" class="array-item-input"
+                                    style="flex:1; max-width: 240px; box-sizing: border-box; padding: 4px 6px; border-radius: 4px;
+                                    border: 1px solid var(--vscode-input-border, #454545); background: var(--vscode-input-background, #1e1e1e);
+                                    color: var(--vscode-input-foreground, #cccccc);" />
+                                <button class="delete-array-item" data-index="\${index}"
+                                    style="padding: 4px 10px; border-radius: 4px; border: none; background: var(--vscode-button-secondaryBackground, #b52020); color: #fff; cursor: pointer;">
+                                    Delete
+                                </button>
                             \`;
                             itemsList.appendChild(listItem);
                         });
@@ -1116,12 +1361,22 @@ export class TabularViewProvider {
                             const value = newItemInput.value.trim();
                             if (value) {
                                 const listItem = document.createElement('li');
+                                listItem.style.display = 'flex';
+                                listItem.style.alignItems = 'center';
+                                listItem.style.gap = '8px';
+                                listItem.style.marginBottom = '6px';
                                 listItem.innerHTML = \`
-                                    <input type="text" value="\${value}" class="array-item-input" />
-                                    <button class="delete-array-item">Delete</button>
+                                    <input type="text" value="\${value}" class="array-item-input"
+                                        style="flex:1; max-width: 240px; box-sizing: border-box; padding: 4px 6px; border-radius: 4px;
+                                        border: 1px solid var(--vscode-input-border, #454545); background: var(--vscode-input-background, #1e1e1e);
+                                        color: var(--vscode-input-foreground, #cccccc);" />
+                                    <button class="delete-array-item"
+                                        style="padding: 4px 10px; border-radius: 4px; border: none; background: var(--vscode-button-secondaryBackground, #b52020); color: #fff; cursor: pointer;">
+                                        Delete
+                                    </button>
                                 \`;
-                                itemsList.appendChild(listItem);
                                 newItemInput.value = '';
+                                itemsList.appendChild(listItem);
                             }
                         };
 
@@ -1139,11 +1394,48 @@ export class TabularViewProvider {
                         };
 
                         document.getElementById('cancelArrayItems').onclick = () => {
+                            newItemInput.value = '';
                             modal.classList.add('hidden'); // Hide the modal
                         };
 
                         modal.classList.remove('hidden'); // Show the modal
                     }
+
+                    document.getElementById('expandAll').addEventListener('click', () => {
+                        document.querySelectorAll('tr[data-parent-id]').forEach(row => {
+                            row.classList.remove('hidden');
+                        });
+                        // Update expand icons
+                        document.querySelectorAll('.expandable').forEach(expander => {
+                            const row = expander.closest('tr');
+                            const nodeId = row.getAttribute('data-id');
+                            const node = findNodeById(tree, nodeId);
+                            const level = node && node.level ? node.level : '';
+                            expander.textContent = \`[-] \${level}\`;
+                            expander.setAttribute('data-loaded', 'true');
+                        });
+                    });
+
+                    document.getElementById('collapseAll').addEventListener('click', () => {
+                        document.querySelectorAll('tr[data-parent-id]').forEach(row => {
+                            // Hide only if not a root row (parent-id is not null/undefined/empty string)
+                            const parentId = row.getAttribute('data-parent-id');
+                            if (parentId && parentId !== 'null' && parentId !== '') {
+                                row.classList.add('hidden');
+                            } else {
+                                row.classList.remove('hidden');
+                            }
+                        });
+                        // Update collapse icons
+                        document.querySelectorAll('.expandable').forEach(expander => {
+                            const row = expander.closest('tr');
+                            const nodeId = row.getAttribute('data-id');
+                            const node = findNodeById(tree, nodeId);
+                            const level = node && node.level ? node.level : '';
+                            expander.textContent = \`[+] \${level}\`;
+                            expander.setAttribute('data-loaded', 'false');
+                        });
+                    });
                 </script>
             </body>
             </html>

@@ -5,10 +5,33 @@ import { TreeNode } from "../models/treeNode";
 import * as xml2js from "xml2js";
 import { TestNode } from "../models/test";
 import { getUniqueId } from "./idGenerator";
+import * as vscode from 'vscode';
+
 
 export class ReqifFileManager{
     public static exportToReqIF(nodes: TreeNode[], projectId: string): string {
             const now = new Date().toISOString();
+
+            const otherDataDefs: Record<string, {type: string, example: any}> = {};
+            for (const node of this.flattenTree(nodes.filter(n => !n.parent))) {
+                if (node instanceof Requirement && node.otherData) {
+                    let otherDataObj = node.otherData instanceof Map ? Object.fromEntries(node.otherData.entries()) : node.otherData;
+                    for (const [key, value] of Object.entries(otherDataObj)) {
+                        if (!otherDataDefs[key]) {
+                            let type = typeof value;
+                            let customType: string;
+                            if (type === 'number') {
+                                customType = Number.isInteger(value) ? 'integer' : 'real';
+                            } else if (type === 'boolean') {
+                                customType = 'boolean';
+                            } else {
+                                customType = 'string';
+                            }
+                            otherDataDefs[key] = {type: customType, example: value};
+                        }
+                    }
+                }
+            }
         
             const root = xmlbuilder.create('REQ-IF', { version: '1.0', encoding: 'UTF-8' })
                 .att('xmlns', 'http://www.omg.org/spec/ReqIF/20110401/reqif.xsd')
@@ -43,6 +66,32 @@ export class ReqifFileManager{
                 'LAST-CHANGE': now,
                 'LONG-NAME': 'XHTML',
             });
+
+            // --- ADDED FOR OTHERDATA: Add integer, real, boolean datatypes if needed ---
+            if (Object.values(otherDataDefs).some(def => def.type === 'integer')) {
+                datatypes.ele('DATATYPE-DEFINITION-INTEGER', {
+                    IDENTIFIER: '_IntegerType',
+                    'LAST-CHANGE': now,
+                    'LONG-NAME': 'Integer',
+                    'MIN': '-2147483648',
+                    'MAX': '2147483647'
+                });
+            }
+            if (Object.values(otherDataDefs).some(def => def.type === 'real')) {
+                datatypes.ele('DATATYPE-DEFINITION-REAL', {
+                    IDENTIFIER: '_RealType',
+                    'LAST-CHANGE': now,
+                    'LONG-NAME': 'Real',
+                    'ACCURACY': '7'
+                });
+            }
+            if (Object.values(otherDataDefs).some(def => def.type === 'boolean')) {
+                datatypes.ele('DATATYPE-DEFINITION-BOOLEAN', {
+                    IDENTIFIER: '_BooleanType',
+                    'LAST-CHANGE': now,
+                    'LONG-NAME': 'Boolean'
+                });
+            }
         
             const specTypes = coreContent.ele('SPEC-TYPES');
             const specObjectRequirementType = specTypes.ele('SPEC-OBJECT-TYPE', {
@@ -153,6 +202,27 @@ export class ReqifFileManager{
                 'LAST-CHANGE': now,
                 'LONG-NAME': 'ReqIF.Description',
             }).ele('TYPE').ele('DATATYPE-DEFINITION-XHTML-REF', '_XhtmlType');
+
+            // --- ADDED FOR OTHERDATA: Add attribute definitions for otherData ---
+            for (const [key, def] of Object.entries(otherDataDefs)) {
+                let attrType = 'STRING';
+                let typeRef = '_StringType';
+                if (def.type === 'integer') {
+                    attrType = 'INTEGER';
+                    typeRef = '_IntegerType';
+                } else if (def.type === 'real') {
+                    attrType = 'REAL';
+                    typeRef = '_RealType';
+                } else if (def.type === 'boolean') {
+                    attrType = 'BOOLEAN';
+                    typeRef = '_BooleanType';
+                }
+                specReqtributes.ele(`ATTRIBUTE-DEFINITION-${attrType}`, {
+                    IDENTIFIER: `_Requirement_OtherData_${key}`,
+                    'LAST-CHANGE': now,
+                    'LONG-NAME': key,
+                }).ele('TYPE').ele(`DATATYPE-DEFINITION-${attrType}-REF`, typeRef);
+            }
         
             const specObjects = coreContent.ele('SPEC-OBJECTS');
             const rootNodes = nodes.filter(node => !node.parent);
@@ -179,6 +249,34 @@ export class ReqifFileManager{
                     values.ele('ATTRIBUTE-VALUE-STRING', { 'THE-VALUE': node instanceof Requirement ? node.status || '' : '' })
                         .ele('DEFINITION')
                         .ele('ATTRIBUTE-DEFINITION-STRING-REF', '_Status');
+
+                    let otherDataObj = node.otherData instanceof Map ? Object.fromEntries(node.otherData.entries()) : node.otherData;
+                    if (otherDataObj) {
+                        for (const [key, value] of Object.entries(otherDataObj)) {
+                            const def = otherDataDefs[key];
+                            if (!def) {continue;}
+                            let valueTypeTag = '';
+                            let defTag = '';
+                            let theValue = value;
+                            if (def.type === 'integer') {
+                                valueTypeTag = 'ATTRIBUTE-VALUE-INTEGER';
+                                defTag = 'ATTRIBUTE-DEFINITION-INTEGER-REF';
+                            } else if (def.type === 'real') {
+                                valueTypeTag = 'ATTRIBUTE-VALUE-REAL';
+                                defTag = 'ATTRIBUTE-DEFINITION-REAL-REF';
+                            } else if (def.type === 'boolean') {
+                                valueTypeTag = 'ATTRIBUTE-VALUE-BOOLEAN';
+                                defTag = 'ATTRIBUTE-DEFINITION-BOOLEAN-REF';
+                                theValue = value ? 'true' : 'false';
+                            } else {
+                                valueTypeTag = 'ATTRIBUTE-VALUE-STRING';
+                                defTag = 'ATTRIBUTE-DEFINITION-STRING-REF';
+                            }
+                            values.ele(valueTypeTag, { 'THE-VALUE': theValue })
+                                .ele('DEFINITION')
+                                .ele(defTag, `_Requirement_OtherData_${key}`);
+                        }
+                    }
 
                     specObject.ele('TYPE').ele('SPEC-OBJECT-TYPE-REF', '_RequirementType');
                     
@@ -254,6 +352,8 @@ export class ReqifFileManager{
         
             return root.end({ pretty: true });
         }
+
+        
     
         private static serializeSpecificationHierarchy(nodes: TreeNode[], parentXml: xmlbuilder.XMLElement): void {
             for (const node of nodes) {
@@ -284,16 +384,50 @@ export class ReqifFileManager{
         public static async importFromReqIF(reqifContent: string): Promise<TreeNode[]> {
             const parser = new xml2js.Parser({ explicitArray: false });
             const parsedReqIF = await parser.parseStringPromise(reqifContent);
+            let allParametersLoaded = true;
         
             const specObjectsMap = new Map<string, TreeNode>();
             const nodes: TreeNode[] = [];
+            let specTypeNameMap = new Map<string, string>();
+            let specObjectTypes;
+            try{
+                specObjectTypes = parsedReqIF['REQ-IF']['CORE-CONTENT']['REQ-IF-CONTENT']['SPEC-TYPES']['SPEC-OBJECT-TYPE'];
+            }
+            catch (error) {
+            }
+            if (specObjectTypes){
+                for (const specObjectType of Array.isArray(specObjectTypes) ? specObjectTypes : [specObjectTypes]) {
+                    const identifier = specObjectType['$']['IDENTIFIER'];
+                    const longName = specObjectType['$']['LONG-NAME'];
+                    if (identifier && longName) {
+                        specTypeNameMap.set(identifier, longName);
+                    }
+                    const specAttributes = specObjectType['SPEC-ATTRIBUTES'];
+                    if (specAttributes) {
+                        const attrs = Array.isArray(specAttributes) ? specAttributes : [specAttributes];
+                        for (const attrGroup of attrs) {
+                            for (const key of Object.keys(attrGroup)) {
+                                const attrDefs = Array.isArray(attrGroup[key]) ? attrGroup[key] : [attrGroup[key]];
+                                for (const attrDef of attrDefs) {
+                                    const attrId = attrDef['$']?.['IDENTIFIER'];
+                                    const attrLongName = attrDef['$']?.['LONG-NAME'];
+                                    if (attrId && attrLongName) {
+                                        specTypeNameMap.set(attrId, attrLongName);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         
             const specObjects = parsedReqIF['REQ-IF']['CORE-CONTENT']['REQ-IF-CONTENT']['SPEC-OBJECTS']['SPEC-OBJECT'];
             for (const specObject of Array.isArray(specObjects) ? specObjects : [specObjects]) {
-                const id = specObject['$']['IDENTIFIER'];
-                const type = specObject['TYPE']['SPEC-OBJECT-TYPE-REF'];
-                const values = specObject['VALUES']['ATTRIBUTE-VALUE-STRING'];
-        
+                let id = specObject['$']['IDENTIFIER'];
+                const type = specTypeNameMap.get(specObject['TYPE']['SPEC-OBJECT-TYPE-REF']);
+                const valuesObj = specObject['VALUES'];
+
+
                 let label = '';
                 let description = '';
                 let priority = '';
@@ -301,53 +435,100 @@ export class ReqifFileManager{
                 let steps: string[] = [];
                 let prerequisites: string[] = [];
                 let parameters: any[] = [];
-        
-                for (const value of Array.isArray(values) ? values : [values]) {
-                    const definitionRef = value['DEFINITION']['ATTRIBUTE-DEFINITION-STRING-REF'];
-                    const theValue = value['$']['THE-VALUE'];
-        
-                    switch (definitionRef) {
-                        case '_Requirement_Title':
-                        case '_Test_Title':
-                        case '_TestCase_Title':
-                            label = theValue;
-                            break;
-                        case '_Requirement_Description':
-                        case '_Test_Description':
-                        case '_TestCase_Description':
-                            description = theValue;
-                            break;
-                        case '_Priority':
-                            priority = theValue;
-                            break;
-                        case '_Status':
-                            status = theValue;
-                            break;
-                        case '_Steps':
-                            steps = theValue.split(',');
-                            break;
-                        case '_Prerequisites':
-                            prerequisites = theValue.split(',');
-                            break;
-                        case '_Parameters':
-                            parameters = JSON.parse(theValue || '[]');
-                            break;
+
+                let additionalData = new Map<string, any>();
+
+                if (valuesObj) {
+                    for (const valueTypeKey of Object.keys(valuesObj)) {
+                        const valueEntries = Array.isArray(valuesObj[valueTypeKey]) ? valuesObj[valueTypeKey] : [valuesObj[valueTypeKey]];
+                        for (const value of valueEntries) {
+                            const defKey = value['DEFINITION'] && Object.keys(value['DEFINITION']).find(k => k.startsWith('ATTRIBUTE-DEFINITION-'));
+                            const definitionRef = defKey ? value['DEFINITION'][defKey] : undefined;
+
+                            let theValue = value['$']?.['THE-VALUE'];
+                            if (valueTypeKey === 'ATTRIBUTE-VALUE-XHTML' && value['THE-VALUE']) {
+                                theValue = value['THE-VALUE']['xhtml:div'] || '';
+                            }
+                            let parsedValue = theValue;
+                            switch (valueTypeKey) {
+                                case 'ATTRIBUTE-VALUE-STRING':
+                                case 'ATTRIBUTE-VALUE-XHTML':
+                                    break;
+                                case 'ATTRIBUTE-VALUE-INTEGER':
+                                    parsedValue = theValue !== undefined ? parseInt(theValue, 10) : undefined;
+                                    break;
+                                case 'ATTRIBUTE-VALUE-REAL':
+                                    parsedValue = theValue !== undefined ? parseFloat(theValue) : undefined;
+                                    break;
+                                case 'ATTRIBUTE-VALUE-BOOLEAN':
+                                    parsedValue = theValue === 'true' || theValue === true;
+                                    break;
+                                case 'ATTRIBUTE-VALUE-DATE':
+                                    parsedValue = new Date(theValue);
+                                    break;
+                            }
+                            if (!parsedValue){
+                                console.log("Unable to parse value");
+                                console.log(value);
+                                console.log(valueTypeKey);
+                                allParametersLoaded = false;
+                            }
+
+                            switch (specTypeNameMap.get(definitionRef) || definitionRef) {
+                                case 'ReqIF.Title':
+                                    label = parsedValue;
+                                    break;
+                                case 'ReqIF.Description':
+                                    description = parsedValue;
+                                    break;
+                                case 'ReqIF.Priority':
+                                    priority = parsedValue;
+                                    break;
+                                case 'ReqIF.Status':
+                                    status = parsedValue;
+                                    break;
+                                case 'ReqIF.Steps':
+                                    steps = typeof parsedValue === 'string' ? parsedValue.split(',') : [];
+                                    break;
+                                case 'ReqIF.Prerequisites':
+                                    prerequisites = typeof parsedValue === 'string' ? parsedValue.split(',') : [];
+                                    break;
+                                case 'ReqIF.Parameters':
+                                    parameters = typeof parsedValue === 'string' ? JSON.parse(parsedValue || '[]') : [];
+                                    break;
+                                case 'ReqIF.Type':
+                                    break;
+                                default:
+                                    additionalData.set(specTypeNameMap.get(definitionRef) || definitionRef, parsedValue);
+                            }
+                        }
                     }
                 }
         
                 let node: TreeNode;
-                if (type === '_RequirementType') {
-                    node = new Requirement(id, label, description, priority as 'High' | 'Medium' | 'Low', status as 'Draft' | 'Ready' | 'Reviewed' | 'Approved' | 'Released');
-                } else if (type === '_TestCaseType') {
+                if (!id){
+                    id = getUniqueId();
+                }
+                if (type === 'Requirement Type') {
+                    node = new Requirement(id, label, description, priority as 'High' | 'Medium' | 'Low' , status as 'Draft' | 'Ready' | 'Reviewed' | 'Approved' | 'Released');
+                } else if (type === 'Test Case Type') {
                     node = new TestCase(id, label, description, steps, prerequisites, parameters);
-                } else if (type === '_TestType') {
+                } else if (type === 'Test Type') {
                     node = new TestNode(id, label, description);
                 } else {
-                    continue;
+                    node = new Requirement(id, "Requirement_" + String(id), "no description", "Medium", "Draft");
+                    // node = new TreeNode(id, "Requirement_" + String(id), 0, type || "Unknown");
                 }
-        
+
+                if (additionalData.size > 0) {
+                    node.otherData = additionalData;
+                }
+                if (!node.label) {
+                    node.label =  specObject['$']['LONG-NAME'] ||  "Requirement_" + String(id);
+                }
                 specObjectsMap.set(id, node);
             }
+
         
             const specHierarchy = parsedReqIF['REQ-IF']['CORE-CONTENT']['REQ-IF-CONTENT']['SPECIFICATIONS']['SPECIFICATION']['CHILDREN']['SPEC-HIERARCHY'];
             const buildHierarchy = (hierarchy: any, parent: TreeNode | null) => {
@@ -361,7 +542,6 @@ export class ReqifFileManager{
                     }
                     nodes.push(node);
                     
-        
                     if (hierarchy['CHILDREN'] && hierarchy['CHILDREN']['SPEC-HIERARCHY']) {
                         const children = Array.isArray(hierarchy['CHILDREN']['SPEC-HIERARCHY'])
                             ? hierarchy['CHILDREN']['SPEC-HIERARCHY']
@@ -377,7 +557,10 @@ export class ReqifFileManager{
             for (const hierarchy of rootHierarchy) {
                 buildHierarchy(hierarchy, null);
             }
-        
+            if (!allParametersLoaded) {
+                vscode.window.showWarningMessage("Requirement file loaded in degraded state");
+            }
+
             return nodes;
         }
 

@@ -66,6 +66,14 @@
         }
       },
       {
+        "command": "typhoon-requirement-tool.editUnknownRequirment",
+        "title": "Edit Unknown Requirement",
+        "icon": {
+          "light": "media/light/edit.svg",
+          "dark": "media/dark/edit.svg"
+        }
+      },
+      {
         "command": "typhoon-requirement-tool.deleteNode",
         "title": "Delete Node",
         "icon": {
@@ -210,6 +218,11 @@
           "group": "inline"
         },
         {
+          "command": "typhoon-requirement-tool.editUnknownRequirment",
+          "when": "viewItem != requirement && viewItem != test && viewItem != testCase",
+          "group": "inline"
+        },
+        {
           "command": "typhoon-requirement-tool.editTest",
           "when": "viewItem == test",
           "group": "inline"
@@ -286,7 +299,7 @@
     "viewsWelcome": [
       {
         "view": "typhoon-requirement-tool.tree",
-        "contents": "Welcome to the Typhoon Requirement Tool! \n No requirements found.\n[Add Requirement](command:typhoon-requirement-tool.addRequirement)"
+        "contents": "Welcome to the Typhoon Requirement Tool! \n No requirements found.\n[Add Requirement](command:typhoon-requirement-tool.addRequirement)\nOR import requirements from ReqIF or CSV files\n[Import from ReqIF file](command:typhoon-requirement-tool.importFromReqIF)\n[Import from CSV file](command:typhoon-requirement-tool.importFromCSV)\n\nFor more information, visit the [GitHub repository](https://github.com/aleksaqm/vscode-typhoon-requirement-tool-extension)."
       }
     ]
   },
