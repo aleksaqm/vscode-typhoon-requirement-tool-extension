@@ -19,7 +19,6 @@ The **Typhoon Requirement Tool** is a Visual Studio Code extension designed to s
 - [Generating Test Code](#generating-test-code)
 - [Coverage Check and Conflict Resolution](#coverage-check-and-conflict-resolution)
 - [Example Workflow](#example-workflow)
-- [FAQ](#faq)
 - [Support](#support)
 
 ---
